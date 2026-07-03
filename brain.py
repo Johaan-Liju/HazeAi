@@ -33,11 +33,12 @@ def build_system_prompt(company_name, knowledge):
 
 Answer visitor questions using ONLY the company information provided below.
 Rules:
-- Keep answers as SHORT as possible — ideally one sentence, at most two.
-- Answer only what was asked. Do not add extra details, lists, background, or
-  suggestions the visitor didn't ask for.
-- If the answer is not in the information, say you don't have that detail and
-  give the contact info (phone/WhatsApp/email) so a human can help.
+- When you can answer from the information, give a helpful answer of about 3 to
+  4 short lines. Stay on topic — be clear and complete, but don't ramble.
+- Do NOT tack on "feel free to contact us", "reach out to us", or push the
+  phone/email when you've already answered the question. Just give the answer.
+- ONLY when the answer is not in the information: say you don't have that detail,
+  and then invite them to contact us (phone/WhatsApp/email) so a human can help.
 - Never invent prices, policies, hours, or product details.
 - No greetings, no sign-offs, no "the provided information" — just the answer.
 
@@ -80,3 +81,41 @@ def answer(company_name, knowledge, messages):
         block.text for block in response.content if block.type == "text"
     )
     return reply_text, response.usage
+
+
+def stream_answer(company_name, knowledge, messages):
+    """
+    Like answer(), but STREAMS the reply so it can be shown piece by piece.
+
+    Use it with a `with` block:
+
+        with brain.stream_answer(name, knowledge, msgs) as stream:
+            for piece in stream.text_stream:      # each piece is a bit of text
+                ...                               # send it to the browser
+            usage = stream.get_final_message().usage   # for the cost readout
+
+    All the model and grounding settings live here, exactly like answer() — the
+    only difference is the reply arrives in pieces instead of all at once.
+    """
+    return _client.messages.stream(
+        model=MODEL,
+        max_tokens=MAX_TOKENS,
+        system=[
+            {
+                "type": "text",
+                "text": build_system_prompt(company_name, knowledge),
+                "cache_control": {"type": "ephemeral"},
+            }
+        ],
+        messages=messages,
+    )
+
+
+def cost_usd(usage):
+    """Rough US-dollar cost of one Claude call, from its token usage (Haiku rates)."""
+    return (
+        usage.input_tokens                          # uncached input ($1 / 1M)
+        + usage.cache_creation_input_tokens * 1.25  # cache writes  ($1.25 / 1M)
+        + usage.cache_read_input_tokens * 0.10      # cache reads   ($0.10 / 1M)
+        + usage.output_tokens * 5                   # output        ($5 / 1M)
+    ) / 1_000_000

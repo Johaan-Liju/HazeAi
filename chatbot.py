@@ -9,13 +9,15 @@ Run it:   python chatbot.py
 """
 
 import brain
+from companies import COMPANIES, knowledge_path
 
-COMPANY_NAME = "CoverFirst"
+COMPANY_ID = "coverfirst"           # which company to test (see companies.py)
+COMPANY_NAME = COMPANIES[COMPANY_ID]
 MAX_HISTORY_MESSAGES = 10   # only keep the last few turns (keeps cost down)
 
 
 def main():
-    knowledge = brain.load_knowledge("knowledge.txt")
+    knowledge = brain.load_knowledge(knowledge_path(COMPANY_ID))
     messages = []           # the conversation so far
 
     print(f"\n{COMPANY_NAME} assistant is ready. Ask a question (or type 'quit').\n")
@@ -38,12 +40,7 @@ def main():
         print(f"Bot: {reply}")
 
         # Show what that message cost, so you can watch your spend.
-        cost = (
-            usage.input_tokens                       # uncached input ($1 / 1M)
-            + usage.cache_creation_input_tokens * 1.25  # cache writes ($1.25 / 1M)
-            + usage.cache_read_input_tokens * 0.10      # cache reads  ($0.10 / 1M)
-            + usage.output_tokens * 5                   # output       ($5 / 1M)
-        ) / 1_000_000
+        cost = brain.cost_usd(usage)
         print(
             f"  [in {usage.input_tokens} + {usage.cache_read_input_tokens} cached, "
             f"out {usage.output_tokens} tokens · ~${cost:.5f}]\n"

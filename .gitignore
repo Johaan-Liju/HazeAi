@@ -1,0 +1,14 @@
+# Python
+__pycache__/
+*.pyc
+
+# Secrets — NEVER commit your API key
+.env
+
+# Virtual environments
+.venv/
+venv/
+
+# Logs / OS junk
+*.log
+.DS_Store
