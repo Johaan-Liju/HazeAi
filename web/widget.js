@@ -1,10 +1,10 @@
 /*
- * The chat widget — Phase 2, Step 4.
+ * The chat widget — Phase 2, Step 4 (now isolated with Shadow DOM).
  *
  * This one file draws the whole chat bubble: the round button in the corner,
- * the chat panel that opens, and the typing/sending logic. It's plain
- * JavaScript (no React, no libraries) so it can be dropped onto ANY website
- * with a single <script> line — that's the end goal (Step 8):
+ * the chat panel that opens, the streaming replies, and the "leave your number"
+ * callback form. It's plain JavaScript (no React, no libraries) so it can be
+ * dropped onto ANY website with a single <script> line:
  *
  *     <script src="https://yourserver.com/widget.js" data-company="coverfirst"></script>
  *
@@ -12,13 +12,19 @@
  *   data-company : which company this chat is for (must match companies.py)
  *   data-title   : the heading shown at the top of the panel (optional)
  * ...and it calls the /chat endpoint on whatever server this file came from.
+ *
+ * IMPORTANT — why Shadow DOM: customer sites have their own CSS, and many use a
+ * global reset like  *{box-sizing:border-box;margin:0}  which would otherwise
+ * leak in and wreck the widget's layout. We mount everything inside a shadow
+ * root, which is a sealed bubble: the host page's styles can't reach in, and
+ * ours can't leak out. That's what keeps the widget looking right everywhere.
  */
 (function () {
   // --- 1. Read config from our own <script> tag (must be done right away) ----
   var SCRIPT = document.currentScript;
   var COMPANY = (SCRIPT && SCRIPT.getAttribute("data-company")) || "coverfirst";
   var TITLE = (SCRIPT && SCRIPT.getAttribute("data-title")) || "Chat with us";
-  // Talk to the /chat endpoint on the SAME server that served this script.
+  // Talk to the endpoints on the SAME server that served this script.
   var API_BASE = SCRIPT ? new URL(SCRIPT.src).origin : "";
 
   var MAX_HISTORY = 10; // send only the last few turns (keeps token cost down)
@@ -27,13 +33,22 @@
   var messages = [];
   var busy = false; // true while we're waiting for a reply
 
-  // --- 2. The widget's own styles (prefixed "cbw-" so they can't clash) ------
+  // --- 2. The widget's own styles (live inside the shadow root) --------------
+  // :host is the widget's outer element. `all: initial` wipes out anything the
+  // host page tried to pass down (fonts, colours), then we set our own. This is
+  // the reset that makes us look the same on every site.
   var css = `
-    .cbw-root { position: fixed; bottom: 20px; right: 20px; z-index: 999999;
+    :host { all: initial; position: fixed; bottom: 20px; right: 20px;
+      z-index: 2147483000;
       font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+    .cbw-root, .cbw-root *, .cbw-root *::before, .cbw-root *::after {
+      box-sizing: border-box; }
+    .cbw-root { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      font-size: 14px; line-height: 1.4; color: #1a1a1a; }
     .cbw-button { width: 60px; height: 60px; border-radius: 50%; border: none;
       background: #4f46e5; color: #fff; font-size: 28px; cursor: pointer;
-      box-shadow: 0 4px 14px rgba(0,0,0,.25); transition: transform .15s; }
+      box-shadow: 0 4px 14px rgba(0,0,0,.25); transition: transform .15s;
+      padding: 0; margin: 0; }
     .cbw-button:hover { transform: scale(1.06); }
     .cbw-panel { display: none; flex-direction: column; width: 360px;
       max-width: calc(100vw - 40px); height: 520px;
@@ -44,7 +59,7 @@
       font-weight: 600; display: flex; justify-content: space-between;
       align-items: center; }
     .cbw-close { background: none; border: none; color: #fff; font-size: 22px;
-      cursor: pointer; line-height: 1; }
+      cursor: pointer; line-height: 1; padding: 0; }
     .cbw-body { flex: 1; overflow-y: auto; padding: 14px; background: #f7f7f9;
       display: flex; flex-direction: column; gap: 10px; }
     .cbw-msg { max-width: 80%; padding: 9px 13px; border-radius: 14px;
@@ -68,13 +83,14 @@
     /* the "leave your number" callback form */
     .cbw-leadlink { border: none; background: #fff; color: #4f46e5;
       font-size: 13px; padding: 8px; cursor: pointer; text-align: center;
-      border-top: 1px solid #ececf0; }
+      border-top: 1px solid #ececf0; width: 100%; }
     .cbw-leadlink:hover { text-decoration: underline; }
     .cbw-lead { display: none; flex-direction: column; gap: 8px; padding: 12px;
       border-top: 1px solid #ececf0; background: #fff; }
     .cbw-lead.cbw-open { display: flex; }
     .cbw-lead-phone, .cbw-lead-q { border: 1px solid #d5d5dd; border-radius:
-      10px; padding: 9px 11px; font: inherit; font-size: 14px; outline: none; }
+      10px; padding: 9px 11px; font: inherit; font-size: 14px; outline: none;
+      width: 100%; }
     .cbw-lead-phone:focus, .cbw-lead-q:focus { border-color: #4f46e5; }
     .cbw-lead-q { resize: none; min-height: 64px; }
     .cbw-lead-row { display: flex; gap: 8px; }
@@ -87,9 +103,20 @@
 
   // --- 3. Build everything once the page body is ready -----------------------
   function init() {
+    // The outer element that sits on the customer's page. Everything else lives
+    // INSIDE its shadow root, sealed off from the page's CSS.
+    var host = document.createElement("div");
+    host.className = "cbw-host";
+    // Belt-and-suspenders positioning in case a browser lacks Shadow DOM.
+    host.style.cssText =
+      "position:fixed;bottom:20px;right:20px;z-index:2147483000;";
+
+    // Attach the shadow root (falls back to the plain element on ancient browsers).
+    var mount = host.attachShadow ? host.attachShadow({ mode: "open" }) : host;
+
     var style = document.createElement("style");
     style.textContent = css;
-    document.head.appendChild(style);
+    mount.appendChild(style);
 
     var root = document.createElement("div");
     root.className = "cbw-root";
@@ -113,9 +140,10 @@
       "  </div>" +
       '  <button class="cbw-leadlink">📞 Leave your number for a callback</button>' +
       "</div>";
-    document.body.appendChild(root);
+    mount.appendChild(root);
+    document.body.appendChild(host);
 
-    // Grab the pieces we need to control.
+    // Grab the pieces we need to control (from inside the shadow root).
     var button = root.querySelector(".cbw-button");
     var panel = root.querySelector(".cbw-panel");
     var closeBtn = root.querySelector(".cbw-close");
