@@ -20,7 +20,8 @@ from pydantic import BaseModel, Field
 
 import brain
 import guardrails
-from companies import COMPANIES, knowledge_path
+import mailer
+from companies import COMPANIES, knowledge_path, lead_email
 
 app = FastAPI()
 
@@ -66,6 +67,13 @@ class ChatRequest(BaseModel):
 
 class ChatReply(BaseModel):
     reply: str
+
+
+class LeadRequest(BaseModel):
+    """A visitor leaving their number for a callback (the lead-capture form)."""
+    company: str = Field(max_length=64)
+    phone: str = Field(min_length=1, max_length=40)      # must leave a number
+    question: str = Field(default="", max_length=1000)   # their message (optional)
 
 
 # --- Endpoints ---------------------------------------------------------------
@@ -132,3 +140,21 @@ def chat_stream(payload: ChatRequest, request: Request):
         )
 
     return StreamingResponse(generate(), media_type="text/plain")
+
+
+@app.post("/lead")
+def lead(payload: LeadRequest, request: Request):
+    """A visitor left their number — email the lead to that company's owner."""
+    guardrails.check_rate_limit(request)
+    if payload.company not in COMPANIES:
+        raise HTTPException(
+            status_code=404, detail=f"Unknown company '{payload.company}'"
+        )
+    company_name = COMPANIES[payload.company]
+    sent = mailer.send_lead(
+        company_name, lead_email(payload.company), payload.phone, payload.question
+    )
+    print(f"[/lead {payload.company}] phone={payload.phone!r} emailed={sent}")
+    # Always tell the visitor "thanks" — the lead is at least logged even if
+    # email isn't configured yet, so they should never see an error here.
+    return {"ok": True}

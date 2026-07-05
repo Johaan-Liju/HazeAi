@@ -65,6 +65,24 @@
     .cbw-send { border: none; background: #4f46e5; color: #fff; border-radius:
       10px; padding: 0 16px; font-weight: 600; cursor: pointer; }
     .cbw-send:disabled { opacity: .5; cursor: default; }
+    /* the "leave your number" callback form */
+    .cbw-leadlink { border: none; background: #fff; color: #4f46e5;
+      font-size: 13px; padding: 8px; cursor: pointer; text-align: center;
+      border-top: 1px solid #ececf0; }
+    .cbw-leadlink:hover { text-decoration: underline; }
+    .cbw-lead { display: none; flex-direction: column; gap: 8px; padding: 12px;
+      border-top: 1px solid #ececf0; background: #fff; }
+    .cbw-lead.cbw-open { display: flex; }
+    .cbw-lead-phone, .cbw-lead-q { border: 1px solid #d5d5dd; border-radius:
+      10px; padding: 9px 11px; font: inherit; font-size: 14px; outline: none; }
+    .cbw-lead-phone:focus, .cbw-lead-q:focus { border-color: #4f46e5; }
+    .cbw-lead-q { resize: none; min-height: 64px; }
+    .cbw-lead-row { display: flex; gap: 8px; }
+    .cbw-lead-send { flex: 1; border: none; background: #4f46e5; color: #fff;
+      border-radius: 10px; padding: 10px; font-weight: 600; cursor: pointer; }
+    .cbw-lead-send:disabled { opacity: .5; cursor: default; }
+    .cbw-lead-cancel { border: none; background: #ececf0; color: #333;
+      border-radius: 10px; padding: 10px 14px; cursor: pointer; }
   `;
 
   // --- 3. Build everything once the page body is ready -----------------------
@@ -81,10 +99,19 @@
       '  <div class="cbw-header"><span></span>' +
       '    <button class="cbw-close" title="Close">×</button></div>' +
       '  <div class="cbw-body"></div>' +
+      '  <div class="cbw-lead">' +
+      '    <input class="cbw-lead-phone" type="tel" placeholder="Your phone number" />' +
+      '    <textarea class="cbw-lead-q" rows="2" placeholder="How can we help you?"></textarea>' +
+      '    <div class="cbw-lead-row">' +
+      '      <button class="cbw-lead-cancel">Back</button>' +
+      '      <button class="cbw-lead-send">Send</button>' +
+      "    </div>" +
+      "  </div>" +
       '  <div class="cbw-footer">' +
       '    <textarea class="cbw-input" rows="1" placeholder="Type a message…"></textarea>' +
       '    <button class="cbw-send">Send</button>' +
       "  </div>" +
+      '  <button class="cbw-leadlink">📞 Leave your number for a callback</button>' +
       "</div>";
     document.body.appendChild(root);
 
@@ -95,6 +122,13 @@
     var body = root.querySelector(".cbw-body");
     var input = root.querySelector(".cbw-input");
     var sendBtn = root.querySelector(".cbw-send");
+    var footer = root.querySelector(".cbw-footer");
+    var leadLink = root.querySelector(".cbw-leadlink");
+    var lead = root.querySelector(".cbw-lead");
+    var leadPhone = root.querySelector(".cbw-lead-phone");
+    var leadQ = root.querySelector(".cbw-lead-q");
+    var leadSend = root.querySelector(".cbw-lead-send");
+    var leadCancel = root.querySelector(".cbw-lead-cancel");
     root.querySelector(".cbw-header span").textContent = TITLE;
 
     // --- helpers ---
@@ -180,6 +214,54 @@
       }
     }
 
+    // --- the callback form (lead capture) ---
+    // Swaps the normal type-a-message footer for a "leave your number" form.
+    function openLead() {
+      lead.classList.add("cbw-open");
+      footer.style.display = "none";
+      leadLink.style.display = "none";
+      // If they'd already typed a question, carry it over so they don't retype.
+      if (input.value.trim()) leadQ.value = input.value.trim();
+      leadPhone.focus();
+    }
+
+    function closeLead() {
+      lead.classList.remove("cbw-open");
+      footer.style.display = "";
+      leadLink.style.display = "";
+    }
+
+    async function sendLead() {
+      var phone = leadPhone.value.trim();
+      if (!phone) {
+        leadPhone.focus(); // a number is the one thing we really need
+        return;
+      }
+      var question = leadQ.value.trim();
+      leadSend.disabled = true;
+      try {
+        var res = await fetch(API_BASE + "/lead", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            company: COMPANY,
+            phone: phone,
+            question: question,
+          }),
+        });
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        leadPhone.value = "";
+        leadQ.value = "";
+        closeLead();
+        addBubble("bot", "Thanks! We've got your number and will reach out soon. 📞");
+      } catch (err) {
+        closeLead();
+        addBubble("bot", "Sorry — couldn't send that just now. Please try again.");
+      } finally {
+        leadSend.disabled = false;
+      }
+    }
+
     // --- wire up the buttons and keyboard ---
     button.addEventListener("click", openPanel);
     closeBtn.addEventListener("click", closePanel);
@@ -190,6 +272,9 @@
         send();
       }
     });
+    leadLink.addEventListener("click", openLead);
+    leadCancel.addEventListener("click", closeLead);
+    leadSend.addEventListener("click", sendLead);
   }
 
   // The script might load before <body> exists — wait for it if so.
