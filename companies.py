@@ -23,8 +23,8 @@ COMPANIES = {
 # Leave blank ("") and it falls back to the LEAD_TO env var — handy while you're
 # testing with just your own inbox. Fill one in per customer as you onboard them.
 LEAD_EMAILS = {
-    "coverfirst": "",
-    "ifihomes": "",
+    "coverfirst": "johaanliju@gmail.com",
+    "ifihomes": "johaanliju@gmail.com",
 }
 
 
