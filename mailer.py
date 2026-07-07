@@ -60,10 +60,18 @@ def send_lead(company_name, to_email, phone, question):
 
     context = ssl.create_default_context()
     try:
-        with smtplib.SMTP(host, port, timeout=20) as smtp:
-            smtp.starttls(context=context)
-            smtp.login(user, password)
-            smtp.send_message(msg)
+        # Port 465 wants encryption from the very first byte (SMTP_SSL); every
+        # other port (587) starts plain and upgrades (starttls). Using the wrong
+        # one doesn't error — it just hangs — so pick automatically by port.
+        if port == 465:
+            with smtplib.SMTP_SSL(host, port, context=context, timeout=15) as smtp:
+                smtp.login(user, password)
+                smtp.send_message(msg)
+        else:
+            with smtplib.SMTP(host, port, timeout=15) as smtp:
+                smtp.starttls(context=context)
+                smtp.login(user, password)
+                smtp.send_message(msg)
     except Exception as e:
         # Wrong app password, typo'd host, blocked port... log the lead and the
         # reason loudly (this shows up in Render's Logs tab), but never crash

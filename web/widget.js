@@ -1,5 +1,5 @@
 /*
- * The chat widget — Phase 2, Step 4 (now isolated with Shadow DOM).
+ * The chat widget — Phase 2, Step 4 (Shadow DOM + saved conversation + polish).
  *
  * This one file draws the whole chat bubble: the round button in the corner,
  * the chat panel that opens, the streaming replies, and the "leave your number"
@@ -18,6 +18,11 @@
  * leak in and wreck the widget's layout. We mount everything inside a shadow
  * root, which is a sealed bubble: the host page's styles can't reach in, and
  * ours can't leak out. That's what keeps the widget looking right everywhere.
+ *
+ * The conversation is saved in sessionStorage (per browser tab), so closing and
+ * reopening the chat — or even reloading the page — picks up where the visitor
+ * left off instead of greeting them from scratch every time. It's forgotten
+ * when the tab closes, which is the polite amount of memory for a chat widget.
  */
 (function () {
   // --- 1. Read config from our own <script> tag (must be done right away) ----
@@ -28,80 +33,173 @@
   var API_BASE = SCRIPT ? new URL(SCRIPT.src).origin : "";
 
   var MAX_HISTORY = 10; // send only the last few turns (keeps token cost down)
+  var GREETING = "Hi! How can I help you today?";
 
-  // The conversation so far, kept in the browser's memory (not on the server).
-  var messages = [];
+  // --- 2. The conversation, restored from this tab's saved copy --------------
+  // sessionStorage survives page reloads but not closing the tab. `greeted`
+  // remembers we've already said hello, so reopening the panel doesn't stack
+  // up "Hi!" bubbles.
+  var STORE_KEY = "cbw-chat-" + COMPANY;
+  var saved = null;
+  try {
+    saved = JSON.parse(sessionStorage.getItem(STORE_KEY) || "null");
+  } catch (err) {}
+  var messages = (saved && saved.messages) || [];
+  var greeted = !!(saved && saved.greeted);
   var busy = false; // true while we're waiting for a reply
 
-  // --- 2. The widget's own styles (live inside the shadow root) --------------
+  function persist() {
+    // Private-browsing modes can forbid storage — the chat still works then,
+    // it just won't survive a reload. Never let a storage error break the UI.
+    try {
+      sessionStorage.setItem(
+        STORE_KEY,
+        JSON.stringify({ greeted: greeted, messages: messages })
+      );
+    } catch (err) {}
+  }
+
+  // --- 3. The widget's own styles (live inside the shadow root) --------------
   // :host is the widget's outer element. `all: initial` wipes out anything the
   // host page tried to pass down (fonts, colours), then we set our own. This is
   // the reset that makes us look the same on every site.
   var css = `
     :host { all: initial; position: fixed; bottom: 20px; right: 20px;
-      z-index: 2147483000;
-      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+      z-index: 2147483000; }
     .cbw-root, .cbw-root *, .cbw-root *::before, .cbw-root *::after {
-      box-sizing: border-box; }
-    .cbw-root { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-      font-size: 14px; line-height: 1.4; color: #1a1a1a; }
+      box-sizing: border-box; margin: 0; padding: 0; }
+    .cbw-root { font-family: ui-sans-serif, system-ui, -apple-system,
+      "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      font-size: 15px; line-height: 1.5; color: #1c1c28;
+      -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+
+    /* the round launcher button */
     .cbw-button { width: 60px; height: 60px; border-radius: 50%; border: none;
-      background: #4f46e5; color: #fff; font-size: 28px; cursor: pointer;
-      box-shadow: 0 4px 14px rgba(0,0,0,.25); transition: transform .15s;
-      padding: 0; margin: 0; }
-    .cbw-button:hover { transform: scale(1.06); }
-    .cbw-panel { display: none; flex-direction: column; width: 360px;
-      max-width: calc(100vw - 40px); height: 520px;
-      max-height: calc(100vh - 120px); background: #fff; border-radius: 16px;
-      overflow: hidden; box-shadow: 0 12px 32px rgba(0,0,0,.28); }
-    .cbw-panel.cbw-open { display: flex; }
-    .cbw-header { background: #4f46e5; color: #fff; padding: 14px 16px;
-      font-weight: 600; display: flex; justify-content: space-between;
-      align-items: center; }
-    .cbw-close { background: none; border: none; color: #fff; font-size: 22px;
-      cursor: pointer; line-height: 1; padding: 0; }
-    .cbw-body { flex: 1; overflow-y: auto; padding: 14px; background: #f7f7f9;
-      display: flex; flex-direction: column; gap: 10px; }
-    .cbw-msg { max-width: 80%; padding: 9px 13px; border-radius: 14px;
-      font-size: 14px; line-height: 1.45; white-space: pre-wrap;
-      word-wrap: break-word; }
-    .cbw-user { align-self: flex-end; background: #4f46e5; color: #fff;
-      border-bottom-right-radius: 4px; }
-    .cbw-bot { align-self: flex-start; background: #fff; color: #1a1a1a;
-      border: 1px solid #e5e5ea; border-bottom-left-radius: 4px; }
-    .cbw-typing { align-self: flex-start; color: #888; font-size: 13px;
-      padding: 4px 6px; }
-    .cbw-footer { display: flex; gap: 8px; padding: 10px; border-top:
-      1px solid #ececf0; background: #fff; }
-    .cbw-input { flex: 1; resize: none; border: 1px solid #d5d5dd;
-      border-radius: 10px; padding: 9px 11px; font: inherit; font-size: 14px;
-      max-height: 90px; outline: none; }
-    .cbw-input:focus { border-color: #4f46e5; }
-    .cbw-send { border: none; background: #4f46e5; color: #fff; border-radius:
-      10px; padding: 0 16px; font-weight: 600; cursor: pointer; }
-    .cbw-send:disabled { opacity: .5; cursor: default; }
+      cursor: pointer; background: linear-gradient(135deg, #6d5ff2, #4f46e5);
+      color: #fff; display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 6px 20px rgba(79,70,229,.45), 0 2px 6px rgba(0,0,0,.12);
+      transition: transform .18s ease, box-shadow .18s ease; }
+    .cbw-button:hover { transform: translateY(-2px) scale(1.05);
+      box-shadow: 0 10px 26px rgba(79,70,229,.5), 0 3px 8px rgba(0,0,0,.14); }
+    .cbw-button svg { width: 28px; height: 28px; }
+
+    /* the chat panel */
+    .cbw-panel { display: none; flex-direction: column; width: 372px;
+      max-width: calc(100vw - 40px); height: 560px;
+      max-height: calc(100vh - 120px); background: #fff; border-radius: 20px;
+      overflow: hidden; transform-origin: bottom right;
+      box-shadow: 0 24px 60px rgba(23,23,60,.25), 0 4px 14px rgba(23,23,60,.12); }
+    .cbw-panel.cbw-open { display: flex;
+      animation: cbw-rise .22s cubic-bezier(.21,1.02,.55,1) both; }
+    @keyframes cbw-rise {
+      from { opacity: 0; transform: translateY(14px) scale(.97); }
+      to   { opacity: 1; transform: none; } }
+
+    /* header */
+    .cbw-header { background: linear-gradient(135deg, #6d5ff2 0%, #4f46e5 60%,
+      #4338ca 100%); color: #fff; padding: 15px 16px; display: flex;
+      align-items: center; gap: 12px; }
+    .cbw-avatar { width: 40px; height: 40px; border-radius: 50%; flex: none;
+      background: rgba(255,255,255,.18); display: flex; align-items: center;
+      justify-content: center; }
+    .cbw-avatar svg { width: 22px; height: 22px; }
+    .cbw-head-text { flex: 1; min-width: 0; }
+    .cbw-title { font-weight: 600; font-size: 16px; letter-spacing: .1px;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .cbw-status { font-size: 12.5px; opacity: .9; display: flex;
+      align-items: center; gap: 6px; margin-top: 2px; }
+    .cbw-dot { width: 7px; height: 7px; border-radius: 50%; background: #4ade80;
+      box-shadow: 0 0 0 3px rgba(74,222,128,.25); }
+    .cbw-close { background: rgba(255,255,255,.14); border: none; color: #fff;
+      width: 30px; height: 30px; border-radius: 50%; font-size: 18px;
+      cursor: pointer; line-height: 1; flex: none; transition: background .15s; }
+    .cbw-close:hover { background: rgba(255,255,255,.28); }
+
+    /* the message area */
+    .cbw-body { flex: 1; overflow-y: auto; padding: 16px 14px;
+      background: #f4f5fb; display: flex; flex-direction: column; gap: 10px; }
+    .cbw-msg { max-width: 82%; padding: 10px 14px; border-radius: 16px;
+      font-size: 14.5px; line-height: 1.5; white-space: pre-wrap;
+      word-wrap: break-word; animation: cbw-pop .18s ease both; }
+    .cbw-instant { animation: none; } /* restored history shouldn't re-animate */
+    @keyframes cbw-pop {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: none; } }
+    .cbw-user { align-self: flex-end; color: #fff;
+      background: linear-gradient(135deg, #6d5ff2, #4f46e5);
+      border-bottom-right-radius: 6px;
+      box-shadow: 0 2px 6px rgba(79,70,229,.28); }
+    .cbw-bot { align-self: flex-start; background: #fff; color: #1c1c28;
+      border-bottom-left-radius: 6px;
+      box-shadow: 0 1px 3px rgba(23,23,60,.08), 0 1px 2px rgba(23,23,60,.05); }
+
+    /* the three bouncing "typing" dots */
+    .cbw-typing { align-self: flex-start; background: #fff; border-radius: 16px;
+      border-bottom-left-radius: 6px; padding: 13px 14px; display: flex;
+      gap: 5px; box-shadow: 0 1px 3px rgba(23,23,60,.08); }
+    .cbw-typing i { width: 7px; height: 7px; border-radius: 50%;
+      background: #b9b9cc; animation: cbw-blink 1.2s infinite both; }
+    .cbw-typing i:nth-child(2) { animation-delay: .18s; }
+    .cbw-typing i:nth-child(3) { animation-delay: .36s; }
+    @keyframes cbw-blink {
+      0%, 70%, 100% { opacity: .35; transform: translateY(0); }
+      35% { opacity: 1; transform: translateY(-3px); } }
+
+    /* the type-a-message footer */
+    .cbw-footer { display: flex; gap: 8px; padding: 12px; align-items: flex-end;
+      border-top: 1px solid #ecedf5; background: #fff; }
+    .cbw-input { flex: 1; resize: none; border: 1px solid #dcdde8;
+      border-radius: 14px; padding: 10px 13px; font: inherit; font-size: 14.5px;
+      line-height: 1.4; max-height: 90px; outline: none; background: #fafafd;
+      transition: border-color .15s, box-shadow .15s; }
+    .cbw-input:focus { border-color: #6d5ff2; background: #fff;
+      box-shadow: 0 0 0 3px rgba(109,95,242,.15); }
+    .cbw-send { border: none; width: 42px; height: 42px; border-radius: 50%;
+      flex: none; background: linear-gradient(135deg, #6d5ff2, #4f46e5);
+      color: #fff; cursor: pointer; display: flex; align-items: center;
+      justify-content: center; transition: transform .15s, opacity .15s; }
+    .cbw-send:hover { transform: scale(1.06); }
+    .cbw-send:disabled { opacity: .45; cursor: default; transform: none; }
+    .cbw-send svg { width: 18px; height: 18px; margin-left: 2px; }
+
     /* the "leave your number" callback form */
     .cbw-leadlink { border: none; background: #fff; color: #4f46e5;
-      font-size: 13px; padding: 8px; cursor: pointer; text-align: center;
-      border-top: 1px solid #ececf0; width: 100%; }
-    .cbw-leadlink:hover { text-decoration: underline; }
-    .cbw-lead { display: none; flex-direction: column; gap: 8px; padding: 12px;
-      border-top: 1px solid #ececf0; background: #fff; }
-    .cbw-lead.cbw-open { display: flex; }
-    .cbw-lead-phone, .cbw-lead-q { border: 1px solid #d5d5dd; border-radius:
-      10px; padding: 9px 11px; font: inherit; font-size: 14px; outline: none;
+      font-family: inherit; font-size: 13px; font-weight: 500; padding: 9px;
+      cursor: pointer; text-align: center; border-top: 1px solid #ecedf5;
       width: 100%; }
-    .cbw-lead-phone:focus, .cbw-lead-q:focus { border-color: #4f46e5; }
-    .cbw-lead-q { resize: none; min-height: 64px; }
+    .cbw-leadlink:hover { background: #f7f7fd; }
+    .cbw-lead { display: none; flex-direction: column; gap: 9px; padding: 14px;
+      border-top: 1px solid #ecedf5; background: #fff; }
+    .cbw-lead.cbw-open { display: flex; }
+    .cbw-lead-title { font-size: 13.5px; font-weight: 600; color: #3f3f50; }
+    .cbw-lead-phone, .cbw-lead-q { border: 1px solid #dcdde8;
+      border-radius: 12px; padding: 10px 13px; font: inherit; font-size: 14.5px;
+      outline: none; width: 100%; background: #fafafd;
+      transition: border-color .15s, box-shadow .15s; }
+    .cbw-lead-phone:focus, .cbw-lead-q:focus { border-color: #6d5ff2;
+      background: #fff; box-shadow: 0 0 0 3px rgba(109,95,242,.15); }
+    .cbw-lead-q { resize: none; min-height: 60px; }
     .cbw-lead-row { display: flex; gap: 8px; }
-    .cbw-lead-send { flex: 1; border: none; background: #4f46e5; color: #fff;
-      border-radius: 10px; padding: 10px; font-weight: 600; cursor: pointer; }
+    .cbw-lead-send { flex: 1; border: none; color: #fff; border-radius: 12px;
+      background: linear-gradient(135deg, #6d5ff2, #4f46e5); padding: 11px;
+      font-family: inherit; font-weight: 600; font-size: 14px; cursor: pointer; }
     .cbw-lead-send:disabled { opacity: .5; cursor: default; }
-    .cbw-lead-cancel { border: none; background: #ececf0; color: #333;
-      border-radius: 10px; padding: 10px 14px; cursor: pointer; }
+    .cbw-lead-cancel { border: none; background: #eef0f6; color: #3f3f50;
+      border-radius: 12px; padding: 11px 16px; cursor: pointer;
+      font-family: inherit; font-size: 14px; }
+    .cbw-lead-cancel:hover { background: #e4e6ef; }
   `;
 
-  // --- 3. Build everything once the page body is ready -----------------------
+  // Crisp inline icons (SVG scales cleanly, unlike emoji, and inherits color).
+  var ICON_CHAT =
+    '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">' +
+    '<path d="M12 3C6.5 3 2 6.9 2 11.7c0 2.6 1.3 4.9 3.4 6.5-.1 1-.6 2.3-1.6 3.3' +
+    ' 1.8-.2 3.3-.9 4.4-1.7 1.2.4 2.4.6 3.8.6 5.5 0 10-3.9 10-8.7S17.5 3 12 3z"/></svg>';
+  var ICON_SEND =
+    '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">' +
+    '<path d="M3.4 20.4l17.8-8.4L3.4 3.6v6.4l12 2-12 2z"/></svg>';
+
+  // --- 4. Build everything once the page body is ready -----------------------
   function init() {
     // The outer element that sits on the customer's page. Everything else lives
     // INSIDE its shadow root, sealed off from the page's CSS.
@@ -121,22 +219,29 @@
     var root = document.createElement("div");
     root.className = "cbw-root";
     root.innerHTML =
-      '<button class="cbw-button" title="Chat with us">💬</button>' +
+      '<button class="cbw-button" title="Chat with us">' + ICON_CHAT + "</button>" +
       '<div class="cbw-panel">' +
-      '  <div class="cbw-header"><span></span>' +
-      '    <button class="cbw-close" title="Close">×</button></div>' +
+      '  <div class="cbw-header">' +
+      '    <div class="cbw-avatar">' + ICON_CHAT + "</div>" +
+      '    <div class="cbw-head-text">' +
+      '      <div class="cbw-title"></div>' +
+      '      <div class="cbw-status"><span class="cbw-dot"></span>Online now</div>' +
+      "    </div>" +
+      '    <button class="cbw-close" title="Close">×</button>' +
+      "  </div>" +
       '  <div class="cbw-body"></div>' +
       '  <div class="cbw-lead">' +
+      '    <div class="cbw-lead-title">Leave your number — we\'ll call you back</div>' +
       '    <input class="cbw-lead-phone" type="tel" placeholder="Your phone number" />' +
       '    <textarea class="cbw-lead-q" rows="2" placeholder="How can we help you?"></textarea>' +
       '    <div class="cbw-lead-row">' +
       '      <button class="cbw-lead-cancel">Back</button>' +
-      '      <button class="cbw-lead-send">Send</button>' +
+      '      <button class="cbw-lead-send">Request callback</button>' +
       "    </div>" +
       "  </div>" +
       '  <div class="cbw-footer">' +
       '    <textarea class="cbw-input" rows="1" placeholder="Type a message…"></textarea>' +
-      '    <button class="cbw-send">Send</button>' +
+      '    <button class="cbw-send" title="Send">' + ICON_SEND + "</button>" +
       "  </div>" +
       '  <button class="cbw-leadlink">📞 Leave your number for a callback</button>' +
       "</div>";
@@ -157,12 +262,15 @@
     var leadQ = root.querySelector(".cbw-lead-q");
     var leadSend = root.querySelector(".cbw-lead-send");
     var leadCancel = root.querySelector(".cbw-lead-cancel");
-    root.querySelector(".cbw-header span").textContent = TITLE;
+    root.querySelector(".cbw-title").textContent = TITLE;
 
     // --- helpers ---
-    function addBubble(role, text) {
+    function addBubble(role, text, instant) {
       var el = document.createElement("div");
-      el.className = "cbw-msg " + (role === "user" ? "cbw-user" : "cbw-bot");
+      el.className =
+        "cbw-msg " +
+        (role === "user" ? "cbw-user" : "cbw-bot") +
+        (instant ? " cbw-instant" : "");
       el.textContent = text;
       body.appendChild(el);
       body.scrollTop = body.scrollHeight; // keep newest message in view
@@ -172,19 +280,31 @@
     function showTyping() {
       var el = document.createElement("div");
       el.className = "cbw-typing";
-      el.textContent = "typing…";
+      el.innerHTML = "<i></i><i></i><i></i>";
       body.appendChild(el);
       body.scrollTop = body.scrollHeight;
       return el;
     }
 
+    // Rebuild the saved conversation (after a page reload). The greeting is
+    // display-only — it lives in `greeted`, not in `messages` — so it comes
+    // back first, then the real turns.
+    if (greeted) addBubble("bot", GREETING, true);
+    messages.forEach(function (m) {
+      addBubble(m.role === "user" ? "user" : "bot", m.content, true);
+    });
+
     function openPanel() {
       panel.classList.add("cbw-open");
       button.style.display = "none";
-      if (messages.length === 0) {
-        // A friendly greeting — shown in the panel, not sent to the API.
-        addBubble("bot", "Hi! How can I help you today?");
+      if (!greeted) {
+        // Say hello exactly once per visit — remembered across open/close
+        // and reloads, so no more stacking "Hi!" bubbles.
+        greeted = true;
+        addBubble("bot", GREETING);
+        persist();
       }
+      body.scrollTop = body.scrollHeight;
       input.focus();
     }
 
@@ -199,6 +319,7 @@
       input.value = "";
       addBubble("user", text);
       messages.push({ role: "user", content: text });
+      persist();
 
       busy = true;
       sendBtn.disabled = true;
@@ -231,6 +352,7 @@
           bubble.textContent = "Sorry — something went wrong. Please try again.";
         } else {
           messages.push({ role: "assistant", content: full });
+          persist();
         }
       } catch (err) {
         typing.remove();

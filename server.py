@@ -13,7 +13,7 @@ Test at http://127.0.0.1:8000/docs , demo at http://127.0.0.1:8000/demo
 
 from typing import Literal
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import BackgroundTasks, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel, Field
@@ -143,7 +143,7 @@ def chat_stream(payload: ChatRequest, request: Request):
 
 
 @app.post("/lead")
-def lead(payload: LeadRequest, request: Request):
+def lead(payload: LeadRequest, request: Request, background: BackgroundTasks):
     """A visitor left their number — email the lead to that company's owner."""
     guardrails.check_rate_limit(request)
     if payload.company not in COMPANIES:
@@ -151,10 +151,12 @@ def lead(payload: LeadRequest, request: Request):
             status_code=404, detail=f"Unknown company '{payload.company}'"
         )
     company_name = COMPANIES[payload.company]
-    sent = mailer.send_lead(
-        company_name, lead_email(payload.company), payload.phone, payload.question
+    print(f"[/lead {payload.company}] phone={payload.phone!r} — emailing in background")
+    # Send the email AFTER responding: the visitor gets an instant "thanks"
+    # instead of staring at a frozen button while we talk to the mail server.
+    # The lead is logged above either way, so it's never lost.
+    background.add_task(
+        mailer.send_lead,
+        company_name, lead_email(payload.company), payload.phone, payload.question,
     )
-    print(f"[/lead {payload.company}] phone={payload.phone!r} emailed={sent}")
-    # Always tell the visitor "thanks" — the lead is at least logged even if
-    # email isn't configured yet, so they should never see an error here.
     return {"ok": True}
