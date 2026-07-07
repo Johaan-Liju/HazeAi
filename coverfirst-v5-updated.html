@@ -1297,6 +1297,7 @@ window.addEventListener('scroll',()=>document.getElementById('nav').classList.to
 /* ── Reveal on scroll ── */
 const ro=new IntersectionObserver((entries)=>{entries.forEach(e=>{if(e.isIntersecting)e.target.classList.add('visible')})},{threshold:.08});
 document.querySelectorAll('.reveal').forEach(el=>ro.observe(el));
+window.__revealReady=true;  /* safety-net flag: proves the main script ran without errors */
 
 /* ── Animated stat counters ── */
 function animateCounter(el, target, suffix=''){
@@ -1457,6 +1458,19 @@ function submitCV(){
   setTimeout(()=>window.open('https://wa.me/919972399663?text='+msg,'_blank'),600);
 }
 
+</script>
+
+<!-- SAFETY NET: if the big script above ever fails (e.g. a typo), this separate
+     tiny script still forces all content to show, so the page can never go blank.
+     When the main script is healthy it sets __revealReady and this does nothing. -->
+<script>
+setTimeout(function () {
+  if (!window.__revealReady) {
+    document.querySelectorAll('.reveal').forEach(function (el) {
+      el.classList.add('visible');
+    });
+  }
+}, 2500);
 </script>
 
 <!-- CoverFirst chatbot widget -->
