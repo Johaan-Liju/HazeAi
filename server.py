@@ -83,16 +83,28 @@ def home():
     return {"status": "ok", "companies": list(COMPANIES)}
 
 
+# "no-cache" doesn't mean "don't cache" — it means "ask the server if this
+# changed before using your saved copy". Unchanged files still come back as a
+# tiny instant 304, but the moment you deploy a new widget every browser picks
+# it up on the next page load. Without this, browsers guess how long to keep
+# files and visitors can be stuck on an old widget for days.
+ALWAYS_REVALIDATE = {"Cache-Control": "no-cache"}
+
+
 @app.get("/widget.js")
 def widget_js():
     """The chat widget script that a customer's website loads."""
-    return FileResponse("web/widget.js", media_type="application/javascript")
+    return FileResponse(
+        "web/widget.js",
+        media_type="application/javascript",
+        headers=ALWAYS_REVALIDATE,
+    )
 
 
 @app.get("/demo")
 def demo():
     """A pretend customer website with the widget embedded — for testing."""
-    return FileResponse("web/demo.html")
+    return FileResponse("web/demo.html", headers=ALWAYS_REVALIDATE)
 
 
 def _resolve(payload: ChatRequest):
