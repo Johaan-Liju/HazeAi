@@ -24,7 +24,7 @@ COMPANIES = {
 # testing with just your own inbox. Fill one in per customer as you onboard them.
 LEAD_EMAILS = {
     "coverfirst": "johaanliju@gmail.com",
-    "ifihomes": "johaanliju@gmail.com",
+    "ifihomes": "hazeai2026@gmail.com",
 }
 
 
