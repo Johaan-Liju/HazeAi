@@ -56,13 +56,20 @@ def send_lead(company_name, to_email, phone, question):
     msg["Subject"] = subject
     msg["From"] = user
     msg["To"] = to_email
-    msg["Reply-To"] = to_email
     msg.set_content(body)
 
     context = ssl.create_default_context()
-    with smtplib.SMTP(host, port) as smtp:
-        smtp.starttls(context=context)
-        smtp.login(user, password)
-        smtp.send_message(msg)
+    try:
+        with smtplib.SMTP(host, port, timeout=20) as smtp:
+            smtp.starttls(context=context)
+            smtp.login(user, password)
+            smtp.send_message(msg)
+    except Exception as e:
+        # Wrong app password, typo'd host, blocked port... log the lead and the
+        # reason loudly (this shows up in Render's Logs tab), but never crash
+        # the /lead endpoint — the visitor should still get a "thanks".
+        print(f"[lead — email FAILED to {to_email}: {e}]")
+        print(f"  phone: {phone!r}  q: {question!r}")
+        return False
     print(f"[lead emailed to {to_email}]")
     return True
