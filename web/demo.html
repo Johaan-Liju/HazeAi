@@ -3,28 +3,122 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>ifihomes — demo site</title>
+    <title>{{COMPANY_NAME}} — your AI assistant, live</title>
+    <!-- These two lines control how the link looks when pasted into WhatsApp. -->
+    <meta property="og:title" content="{{COMPANY_NAME}} — your website's AI assistant (live demo)" />
+    <meta property="og:description" content="It has already read {{COMPANY_NAME}}'s website. Ask it anything a customer would — then watch it capture the lead." />
     <style>
-      body { font-family: system-ui, sans-serif; margin: 0; color: #222;
-        line-height: 1.6; }
-      .hero { background: #0f172a; color: #fff; padding: 80px 24px;
-        text-align: center; }
-      .hero h1 { font-size: 40px; margin: 0 0 12px; }
-      .hero p { font-size: 18px; opacity: .85; margin: 0; }
-      .content { max-width: 720px; margin: 0 auto; padding: 48px 24px; }
-      .note { background: #eef2ff; border: 1px solid #c7d2fe; border-radius:
-        10px; padding: 16px 18px; font-size: 15px; }
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      body { font-family: system-ui, -apple-system, "Segoe UI", Roboto,
+        sans-serif; background: #f4f5fb; color: #1c1c28; line-height: 1.6; }
+
+      .hero { background: linear-gradient(140deg, #251f56 0%, #3730a3 55%,
+        #4f46e5 100%); color: #fff; text-align: center; padding: 58px 22px 66px; }
+      .eyebrow { display: inline-block; font-size: 12px; font-weight: 600;
+        letter-spacing: .16em; text-transform: uppercase;
+        background: rgba(255,255,255,.13); border: 1px solid rgba(255,255,255,.25);
+        border-radius: 999px; padding: 6px 14px; margin-bottom: 20px; }
+      h1 { font-size: clamp(30px, 7vw, 46px); line-height: 1.12;
+        margin-bottom: 14px; }
+      .hero p { max-width: 580px; margin: 0 auto; font-size: 17px; opacity: .93; }
+      .hint { margin-top: 26px; font-size: 15px; font-weight: 500;
+        display: inline-flex; align-items: center; gap: 8px;
+        background: rgba(255,255,255,.13); border-radius: 999px;
+        padding: 9px 18px; animation: nudge 2.2s ease-in-out infinite; }
+      @keyframes nudge { 0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-4px); } }
+
+      .wrap { max-width: 880px; margin: -30px auto 0; padding: 0 18px 24px;
+        display: flex; flex-direction: column; gap: 18px; }
+      .card { background: #fff; border-radius: 18px; padding: 26px 24px;
+        box-shadow: 0 10px 30px rgba(23,23,60,.07), 0 2px 8px rgba(23,23,60,.05); }
+      h2 { font-size: 20px; margin-bottom: 12px; }
+      .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+      .chip { background: #eef0fe; color: #3f3aa8; border-radius: 999px;
+        padding: 8px 14px; font-size: 14px; }
+      .fine { font-size: 13.5px; color: #6b6b80; }
+
+      .grid { display: grid; gap: 18px;
+        grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); }
+      .grid .card { padding: 22px; }
+      .emoji { font-size: 26px; margin-bottom: 8px; }
+      h3 { font-size: 16px; margin-bottom: 6px; }
+      .grid p { font-size: 14.5px; color: #494960; }
+
+      .cta { text-align: center; }
+      .cta p { max-width: 460px; margin: 0 auto 16px; color: #494960; }
+      .btn { display: inline-block; color: #fff; text-decoration: none;
+        background: linear-gradient(135deg, #6d5ff2, #4f46e5);
+        font-weight: 600; font-size: 15px; border-radius: 999px;
+        padding: 13px 26px; margin: 2px 4px;
+        box-shadow: 0 6px 18px rgba(79,70,229,.35); }
+      .cta .fine { margin-top: 14px; }
+
+      /* room at the bottom so the floating chat bubble never covers the text */
+      footer { text-align: center; font-size: 12.5px; color: #8a8a9d;
+        padding: 16px 18px 110px; }
     </style>
   </head>
   <body>
     <div class="hero">
-      <h1>ifihomes</h1>
-
+      <div class="eyebrow">Live demo · built for</div>
+      <h1>{{COMPANY_NAME}}</h1>
+      <p>Meet your website's AI assistant. It has already read
+        {{COMPANY_NAME}}'s website, and it answers customer questions the way
+        your best employee would — instantly, at any hour.</p>
+      <div class="hint">It'll open by itself in a moment — say hello 👋</div>
     </div>
 
+    <div class="wrap">
+      <div class="card">
+        <h2>Try asking it…</h2>
+        <div class="chips">
+          <span class="chip">“What do you offer?”</span>
+          <span class="chip">“How do I get in touch?”</span>
+          <span class="chip">“Can someone call me back?”</span>
+        </div>
+        <p class="fine">It answers only from {{COMPANY_NAME}}'s own website.
+          If it doesn't know something, it says so and offers to take the
+          visitor's number — it never makes things up.</p>
+      </div>
 
+      <div class="grid">
+        <div class="card">
+          <div class="emoji">🌙</div>
+          <h3>Never miss an after-hours customer</h3>
+          <p>Visitors browse at night and on weekends. This answers them
+            instantly, 24/7 — in your business's own words.</p>
+        </div>
+        <div class="card">
+          <div class="emoji">📞</div>
+          <h3>Warm leads in your inbox</h3>
+          <p>When a visitor wants a callback, it takes their phone number and
+            emails it to you on the spot. Try it — tap “Leave your number”.</p>
+        </div>
+        <div class="card">
+          <div class="emoji">⚡</div>
+          <h3>Live on your site in a day</h3>
+          <p>Your web person pastes one line of code. Setup, updates and
+            upkeep are all handled for you.</p>
+        </div>
+      </div>
 
-    <!-- ▼▼▼ This is the ONE line a customer pastes onto their site ▼▼▼ -->
-    <script src="/widget.js" data-company="ifihomes" data-title="ifihomes"></script>
+      <div class="card cta">
+        <h2>Want this on your website?</h2>
+        <p>First month free — see the leads arrive before you pay a rupee.</p>
+        <a class="btn" href="mailto:johaanliju@gmail.com?subject=AI%20assistant%20demo">📧 Email Johaan</a>
+        <!-- WhatsApp button: put your number after wa.me/ (country code
+             first, no plus sign or spaces, e.g. 919876543210), then move
+             this line out of the comment.
+        <a class="btn" href="https://wa.me/91XXXXXXXXXX?text=Hi%20Johaan%2C%20saw%20the%20demo">💬 WhatsApp Johaan</a>
+        -->
+        <p class="fine">No contracts. Cancel anytime.</p>
+      </div>
+    </div>
+
+    <footer>Live demo by Haze AI · the assistant's answers come from
+      {{COMPANY_NAME}}'s public website</footer>
+
+    <script src="/widget.js" data-company="{{COMPANY_ID}}" data-title="{{COMPANY_NAME}}" data-open="1"></script>
   </body>
 </html>

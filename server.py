@@ -11,11 +11,12 @@ Run it:   uvicorn server:app --reload
 Test at http://127.0.0.1:8000/docs , demo at http://127.0.0.1:8000/demo
 """
 
+from html import escape
 from typing import Literal
 
 from fastapi import BackgroundTasks, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
 import brain
@@ -101,10 +102,44 @@ def widget_js():
     )
 
 
+# Shown when a demo link points at a company that isn't set up (typo, or a
+# prospect forwarding an old link). Friendly, and turns even a dead link into
+# a contact opportunity.
+DEMO_404 = """<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Demo not found</title></head>
+<body style="font-family:system-ui,sans-serif;display:grid;place-items:center;
+min-height:100vh;margin:0;background:#f4f5fb;color:#1c1c28;text-align:center;padding:24px">
+<div><div style="font-size:44px">🤖</div>
+<h1 style="margin:10px 0 6px;font-size:24px">This demo isn't live yet</h1>
+<p style="max-width:420px;color:#555">The link may have a typo — or this demo
+just hasn't been set up. Email
+<a href="mailto:johaanliju@gmail.com" style="color:#4f46e5">johaanliju@gmail.com</a>
+and it can be ready within a day.</p></div>
+</body></html>"""
+
+
 @app.get("/demo")
-def demo():
-    """A pretend customer website with the widget embedded — for testing."""
-    return FileResponse("web/demo.html", headers=ALWAYS_REVALIDATE)
+def demo(company: str = "coverfirst"):
+    """The per-prospect demo page: /demo?company=<id> shows THAT company's bot.
+
+    This is the sales link you send a prospect after crawling their site —
+    the page greets them by name and their own chatbot opens by itself.
+    Onboarding a prospect is the usual two steps (knowledge file + one line
+    in companies.py); their demo link then just works.
+    """
+    company = company.strip().lower()
+    if company not in COMPANIES:
+        return HTMLResponse(DEMO_404, status_code=404, headers=ALWAYS_REVALIDATE)
+
+    with open("web/demo.html", encoding="utf-8") as f:
+        page = f.read()
+    # The id is a validated COMPANIES key; the display name is escaped in case
+    # one ever contains an HTML-special character like &.
+    page = page.replace("{{COMPANY_ID}}", company)
+    page = page.replace("{{COMPANY_NAME}}", escape(COMPANIES[company]))
+    return HTMLResponse(page, headers=ALWAYS_REVALIDATE)
 
 
 def _resolve(payload: ChatRequest):

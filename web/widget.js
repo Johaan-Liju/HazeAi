@@ -29,6 +29,10 @@
   var SCRIPT = document.currentScript;
   var COMPANY = (SCRIPT && SCRIPT.getAttribute("data-company")) || "coverfirst";
   var TITLE = (SCRIPT && SCRIPT.getAttribute("data-title")) || "Chat with us";
+  // data-open="1" on the script tag (used on the demo pages) makes the chat
+  // open by itself shortly after the page loads, instead of waiting for a
+  // click. Customer sites just leave the attribute off.
+  var AUTO_OPEN = !!(SCRIPT && SCRIPT.getAttribute("data-open"));
   // Talk to the endpoints on the SAME server that served this script.
   var API_BASE = SCRIPT ? new URL(SCRIPT.src).origin : "";
 
@@ -294,7 +298,7 @@
       addBubble(m.role === "user" ? "user" : "bot", m.content, true);
     });
 
-    function openPanel() {
+    function openPanel(autoOpened) {
       panel.classList.add("cbw-open");
       button.style.display = "none";
       if (!greeted) {
@@ -305,7 +309,9 @@
         persist();
       }
       body.scrollTop = body.scrollHeight;
-      input.focus();
+      // When we open OURSELVES (demo pages), don't grab the keyboard — on a
+      // phone that would shove the page up before the visitor has even read it.
+      if (autoOpened !== true) input.focus();
     }
 
     function closePanel() {
@@ -413,7 +419,7 @@
     }
 
     // --- wire up the buttons and keyboard ---
-    button.addEventListener("click", openPanel);
+    button.addEventListener("click", function () { openPanel(); });
     closeBtn.addEventListener("click", closePanel);
     sendBtn.addEventListener("click", send);
     input.addEventListener("keydown", function (e) {
@@ -425,6 +431,13 @@
     leadLink.addEventListener("click", openLead);
     leadCancel.addEventListener("click", closeLead);
     leadSend.addEventListener("click", sendLead);
+
+    // Demo pages ask us to open ourselves. Wait a beat so the visitor sees
+    // the page land first — and skip it if they've already chatted this
+    // visit (a reload shouldn't keep springing the panel back open).
+    if (AUTO_OPEN && !greeted) {
+      setTimeout(function () { openPanel(true); }, 900);
+    }
   }
 
   // The script might load before <body> exists — wait for it if so.
