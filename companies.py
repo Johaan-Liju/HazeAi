@@ -17,6 +17,7 @@ import os
 COMPANIES = {
     "coverfirst": "CoverFirst",
     "ifihomes": "IFI homes",
+    "thirukochi": "Thirukochi Financial Services",
 }
 
 # id  ->  the business owner's email, where THAT company's leads get sent.
@@ -25,6 +26,7 @@ COMPANIES = {
 LEAD_EMAILS = {
     "coverfirst": "johaanliju@gmail.com",
     "ifihomes": "hazeai2026@gmail.com",
+    "thirukochi": "jhoncyjacob@gmail.com",
 }
 
 
