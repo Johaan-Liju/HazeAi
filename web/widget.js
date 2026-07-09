@@ -269,13 +269,27 @@
     root.querySelector(".cbw-title").textContent = TITLE;
 
     // --- helpers ---
+    // The bot is told to answer in plain text, but models still slip in
+    // markdown now and then (**bold**, "* item" bullets, ### headers). The
+    // bubble shows raw text, so those would appear as literal asterisks.
+    // This scrubs the common ones: bold/italic markers and backticks are
+    // removed, bullets become a clean "•", header hashes are dropped.
+    function tidy(text) {
+      return text
+        .replace(/\*\*/g, "")                 // **bold** markers
+        .replace(/__/g, "")                   // __bold__ markers
+        .replace(/`+/g, "")                   // `code` backticks
+        .replace(/^[ \t]*#{1,6}[ \t]+/gm, "") // ### headers
+        .replace(/^[ \t]*[*-][ \t]+/gm, "• "); // * / - bullets → •
+    }
+
     function addBubble(role, text, instant) {
       var el = document.createElement("div");
       el.className =
         "cbw-msg " +
         (role === "user" ? "cbw-user" : "cbw-bot") +
         (instant ? " cbw-instant" : "");
-      el.textContent = text;
+      el.textContent = role === "user" ? text : tidy(text);
       body.appendChild(el);
       body.scrollTop = body.scrollHeight; // keep newest message in view
       return el;
@@ -351,13 +365,14 @@
           var chunk = await reader.read();
           if (chunk.done) break;
           full += decoder.decode(chunk.value, { stream: true });
-          bubble.textContent = full; // repaint the bubble with everything so far
+          // repaint the bubble with everything so far, scrubbed of markdown
+          bubble.textContent = tidy(full);
           body.scrollTop = body.scrollHeight;
         }
         if (full.trim() === "") {
           bubble.textContent = "Sorry — something went wrong. Please try again.";
         } else {
-          messages.push({ role: "assistant", content: full });
+          messages.push({ role: "assistant", content: tidy(full) });
           persist();
         }
       } catch (err) {
