@@ -8,9 +8,12 @@
  *
  *     <script src="https://yourserver.com/widget.js" data-company="coverfirst"></script>
  *
- * It reads two things from that <script> tag:
+ * It reads three things from that <script> tag:
  *   data-company : which company this chat is for (must match companies.py)
  *   data-title   : the heading shown at the top of the panel (optional)
+ *   data-color   : the widget's accent colour, e.g. data-color="#0e7a4d"
+ *                  (optional — recolours the button, header, bubbles and all;
+ *                  leave it off for the default purple)
  * ...and it calls the /chat endpoint on whatever server this file came from.
  *
  * IMPORTANT — why Shadow DOM: customer sites have their own CSS, and many use a
@@ -29,6 +32,10 @@
   var SCRIPT = document.currentScript;
   var COMPANY = (SCRIPT && SCRIPT.getAttribute("data-company")) || "coverfirst";
   var TITLE = (SCRIPT && SCRIPT.getAttribute("data-title")) || "Chat with us";
+  // Optional brand colour for this customer (any CSS colour: "#0e7a4d",
+  // "rgb(...)", even "teal"). Everything purple below is painted from ONE
+  // CSS variable, so changing this one value re-themes the whole widget.
+  var COLOR = (SCRIPT && SCRIPT.getAttribute("data-color")) || "";
   // data-open="1" on the script tag (used on the demo pages) makes the chat
   // open by itself shortly after the page loads, instead of waiting for a
   // click. Customer sites just leave the attribute off.
@@ -69,7 +76,13 @@
   // the reset that makes us look the same on every site.
   var css = `
     :host { all: initial; position: fixed; bottom: 20px; right: 20px;
-      z-index: 2147483000; }
+      z-index: 2147483000;
+      /* The whole colour scheme hangs off this ONE variable. data-color on
+         the <script> tag overrides it; the lighter/darker shades used in the
+         gradients are mixed automatically from whatever colour is chosen. */
+      --cbw-accent: #4f46e5;
+      --cbw-lite: color-mix(in srgb, var(--cbw-accent) 80%, #fff);
+      --cbw-dark: color-mix(in srgb, var(--cbw-accent) 82%, #000); }
     .cbw-root, .cbw-root *, .cbw-root *::before, .cbw-root *::after {
       box-sizing: border-box; margin: 0; padding: 0; }
     .cbw-root { font-family: ui-sans-serif, system-ui, -apple-system,
@@ -79,12 +92,15 @@
 
     /* the round launcher button */
     .cbw-button { width: 60px; height: 60px; border-radius: 50%; border: none;
-      cursor: pointer; background: linear-gradient(135deg, #6d5ff2, #4f46e5);
+      cursor: pointer;
+      background: linear-gradient(135deg, var(--cbw-lite), var(--cbw-accent));
       color: #fff; display: flex; align-items: center; justify-content: center;
-      box-shadow: 0 6px 20px rgba(79,70,229,.45), 0 2px 6px rgba(0,0,0,.12);
+      box-shadow: 0 6px 20px color-mix(in srgb, var(--cbw-accent) 45%, transparent),
+        0 2px 6px rgba(0,0,0,.12);
       transition: transform .18s ease, box-shadow .18s ease; }
     .cbw-button:hover { transform: translateY(-2px) scale(1.05);
-      box-shadow: 0 10px 26px rgba(79,70,229,.5), 0 3px 8px rgba(0,0,0,.14); }
+      box-shadow: 0 10px 26px color-mix(in srgb, var(--cbw-accent) 50%, transparent),
+        0 3px 8px rgba(0,0,0,.14); }
     .cbw-button svg { width: 28px; height: 28px; }
 
     /* the chat panel */
@@ -100,9 +116,9 @@
       to   { opacity: 1; transform: none; } }
 
     /* header */
-    .cbw-header { background: linear-gradient(135deg, #6d5ff2 0%, #4f46e5 60%,
-      #4338ca 100%); color: #fff; padding: 15px 16px; display: flex;
-      align-items: center; gap: 12px; }
+    .cbw-header { background: linear-gradient(135deg, var(--cbw-lite) 0%,
+      var(--cbw-accent) 60%, var(--cbw-dark) 100%); color: #fff;
+      padding: 15px 16px; display: flex; align-items: center; gap: 12px; }
     .cbw-avatar { width: 40px; height: 40px; border-radius: 50%; flex: none;
       background: rgba(255,255,255,.18); display: flex; align-items: center;
       justify-content: center; }
@@ -130,9 +146,9 @@
       from { opacity: 0; transform: translateY(6px); }
       to   { opacity: 1; transform: none; } }
     .cbw-user { align-self: flex-end; color: #fff;
-      background: linear-gradient(135deg, #6d5ff2, #4f46e5);
+      background: linear-gradient(135deg, var(--cbw-lite), var(--cbw-accent));
       border-bottom-right-radius: 6px;
-      box-shadow: 0 2px 6px rgba(79,70,229,.28); }
+      box-shadow: 0 2px 6px color-mix(in srgb, var(--cbw-accent) 28%, transparent); }
     .cbw-bot { align-self: flex-start; background: #fff; color: #1c1c28;
       border-bottom-left-radius: 6px;
       box-shadow: 0 1px 3px rgba(23,23,60,.08), 0 1px 2px rgba(23,23,60,.05); }
@@ -156,10 +172,10 @@
       border-radius: 14px; padding: 10px 13px; font: inherit; font-size: 14.5px;
       line-height: 1.4; max-height: 90px; outline: none; background: #fafafd;
       transition: border-color .15s, box-shadow .15s; }
-    .cbw-input:focus { border-color: #6d5ff2; background: #fff;
-      box-shadow: 0 0 0 3px rgba(109,95,242,.15); }
+    .cbw-input:focus { border-color: var(--cbw-lite); background: #fff;
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--cbw-accent) 15%, transparent); }
     .cbw-send { border: none; width: 42px; height: 42px; border-radius: 50%;
-      flex: none; background: linear-gradient(135deg, #6d5ff2, #4f46e5);
+      flex: none; background: linear-gradient(135deg, var(--cbw-lite), var(--cbw-accent));
       color: #fff; cursor: pointer; display: flex; align-items: center;
       justify-content: center; transition: transform .15s, opacity .15s; }
     .cbw-send:hover { transform: scale(1.06); }
@@ -167,7 +183,7 @@
     .cbw-send svg { width: 18px; height: 18px; margin-left: 2px; }
 
     /* the "leave your number" callback form */
-    .cbw-leadlink { border: none; background: #fff; color: #4f46e5;
+    .cbw-leadlink { border: none; background: #fff; color: var(--cbw-accent);
       font-family: inherit; font-size: 13px; font-weight: 500; padding: 9px;
       cursor: pointer; text-align: center; border-top: 1px solid #ecedf5;
       width: 100%; }
@@ -180,18 +196,25 @@
       border-radius: 12px; padding: 10px 13px; font: inherit; font-size: 14.5px;
       outline: none; width: 100%; background: #fafafd;
       transition: border-color .15s, box-shadow .15s; }
-    .cbw-lead-phone:focus, .cbw-lead-q:focus { border-color: #6d5ff2;
-      background: #fff; box-shadow: 0 0 0 3px rgba(109,95,242,.15); }
+    .cbw-lead-phone:focus, .cbw-lead-q:focus { border-color: var(--cbw-lite);
+      background: #fff;
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--cbw-accent) 15%, transparent); }
     .cbw-lead-q { resize: none; min-height: 60px; }
     .cbw-lead-row { display: flex; gap: 8px; }
     .cbw-lead-send { flex: 1; border: none; color: #fff; border-radius: 12px;
-      background: linear-gradient(135deg, #6d5ff2, #4f46e5); padding: 11px;
+      background: linear-gradient(135deg, var(--cbw-lite), var(--cbw-accent));
+      padding: 11px;
       font-family: inherit; font-weight: 600; font-size: 14px; cursor: pointer; }
     .cbw-lead-send:disabled { opacity: .5; cursor: default; }
     .cbw-lead-cancel { border: none; background: #eef0f6; color: #3f3f50;
       border-radius: 12px; padding: 11px 16px; cursor: pointer;
       font-family: inherit; font-size: 14px; }
     .cbw-lead-cancel:hover { background: #e4e6ef; }
+
+    /* the tiny "Powered by Haze AI" strip at the very bottom */
+    .cbw-brand { text-align: center; font-size: 11px; color: #9a9ab0;
+      background: #fff; padding: 0 0 8px; letter-spacing: .2px; }
+    .cbw-brand b { font-weight: 600; color: #7c7c99; }
   `;
 
   // Crisp inline icons (SVG scales cleanly, unlike emoji, and inherits color).
@@ -215,6 +238,11 @@
 
     // Attach the shadow root (falls back to the plain element on ancient browsers).
     var mount = host.attachShadow ? host.attachShadow({ mode: "open" }) : host;
+
+    // If the script tag gave us a brand colour, paint it over the default.
+    // Setting it on the host wins over the stylesheet's default, and every
+    // shade in the CSS is mixed from this one value.
+    if (COLOR) host.style.setProperty("--cbw-accent", COLOR);
 
     var style = document.createElement("style");
     style.textContent = css;
@@ -248,6 +276,7 @@
       '    <button class="cbw-send" title="Send">' + ICON_SEND + "</button>" +
       "  </div>" +
       '  <button class="cbw-leadlink">📞 Leave your number for a callback</button>' +
+      '  <div class="cbw-brand">⚡ Powered by <b>Haze AI</b></div>' +
       "</div>";
     mount.appendChild(root);
     document.body.appendChild(host);
