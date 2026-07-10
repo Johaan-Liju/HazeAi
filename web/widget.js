@@ -8,12 +8,16 @@
  *
  *     <script src="https://yourserver.com/widget.js" data-company="coverfirst"></script>
  *
- * It reads three things from that <script> tag:
- *   data-company : which company this chat is for (must match companies.py)
- *   data-title   : the heading shown at the top of the panel (optional)
- *   data-color   : the widget's accent colour, e.g. data-color="#0e7a4d"
- *                  (optional — recolours the button, header, bubbles and all;
- *                  leave it off for the default purple)
+ * It reads four things from that <script> tag:
+ *   data-company     : which company this chat is for (must match companies.py)
+ *   data-title       : the heading shown at the top of the panel (optional)
+ *   data-color       : the widget's accent colour, e.g. data-color="#0e7a4d"
+ *                      (optional — recolours the button, header, bubbles and
+ *                      all; leave it off for the default purple)
+ *   data-suggestions : tap-to-ask starter questions shown under the greeting,
+ *                      separated by | e.g. data-suggestions="Do you deliver?|
+ *                      What are your hours?" (optional — there's a sensible
+ *                      default set; they vanish after the first message)
  * ...and it calls the /chat endpoint on whatever server this file came from.
  *
  * IMPORTANT — why Shadow DOM: customer sites have their own CSS, and many use a
@@ -45,6 +49,18 @@
 
   var MAX_HISTORY = 10; // send only the last few turns (keeps token cost down)
   var GREETING = "Hi! How can I help you today?";
+
+  // Tap-to-ask starter questions. A blank chat is intimidating — these give
+  // the visitor something to click instead of having to compose an opener.
+  // They show under the greeting only until the first message is sent.
+  // Per-site override via the script tag: data-suggestions="Q one|Q two".
+  var SUGGESTIONS = (
+    (SCRIPT && SCRIPT.getAttribute("data-suggestions")) ||
+    "What do you offer?|How do I get in touch?|Can someone call me back?"
+  )
+    .split("|")
+    .map(function (s) { return s.trim(); })
+    .filter(Boolean);
 
   // --- 2. The conversation, restored from this tab's saved copy --------------
   // sessionStorage survives page reloads but not closing the tab. `greeted`
@@ -152,6 +168,18 @@
     .cbw-bot { align-self: flex-start; background: #fff; color: #1c1c28;
       border-bottom-left-radius: 6px;
       box-shadow: 0 1px 3px rgba(23,23,60,.08), 0 1px 2px rgba(23,23,60,.05); }
+
+    /* tap-to-ask starter questions (first visit only) */
+    .cbw-sugg { display: flex; flex-wrap: wrap; gap: 8px; padding-top: 2px;
+      animation: cbw-pop .18s ease both; }
+    .cbw-sugg button { font-family: inherit; font-size: 13px; font-weight: 500;
+      color: var(--cbw-accent); background: #fff; cursor: pointer;
+      border: 1px solid color-mix(in srgb, var(--cbw-accent) 40%, transparent);
+      border-radius: 999px; padding: 8px 13px; text-align: left;
+      transition: background .15s, border-color .15s; }
+    .cbw-sugg button:hover {
+      background: color-mix(in srgb, var(--cbw-accent) 8%, #fff);
+      border-color: var(--cbw-accent); }
 
     /* the three bouncing "typing" dots */
     .cbw-typing { align-self: flex-start; background: #fff; border-radius: 16px;
@@ -333,6 +361,32 @@
       return el;
     }
 
+    // The starter-question chips. They appear under the greeting while the
+    // conversation is still empty, and are removed for good the moment the
+    // visitor sends anything (clicked or typed). Clicking one just types the
+    // question and presses send — it goes through the exact same path.
+    var suggEl = null;
+    function showSuggestions() {
+      if (suggEl || messages.length || !SUGGESTIONS.length) return;
+      suggEl = document.createElement("div");
+      suggEl.className = "cbw-sugg";
+      SUGGESTIONS.forEach(function (q) {
+        var b = document.createElement("button");
+        b.type = "button";
+        b.textContent = q;
+        b.addEventListener("click", function () {
+          input.value = q;
+          send();
+        });
+        suggEl.appendChild(b);
+      });
+      body.appendChild(suggEl);
+      body.scrollTop = body.scrollHeight;
+    }
+    function hideSuggestions() {
+      if (suggEl) { suggEl.remove(); suggEl = null; }
+    }
+
     // Rebuild the saved conversation (after a page reload). The greeting is
     // display-only — it lives in `greeted`, not in `messages` — so it comes
     // back first, then the real turns.
@@ -351,6 +405,9 @@
         addBubble("bot", GREETING);
         persist();
       }
+      // Offer the starter questions while the chat is still empty (guarded
+      // inside, so reopening the panel doesn't stack a second row of chips).
+      showSuggestions();
       body.scrollTop = body.scrollHeight;
       // When we open OURSELVES (demo pages), don't grab the keyboard — on a
       // phone that would shove the page up before the visitor has even read it.
@@ -365,6 +422,7 @@
     async function send() {
       var text = input.value.trim();
       if (!text || busy) return;
+      hideSuggestions(); // first real message — the training wheels come off
       input.value = "";
       addBubble("user", text);
       messages.push({ role: "user", content: text });
@@ -406,6 +464,9 @@
         }
       } catch (err) {
         typing.remove();
+        // If the stream died mid-reply, an empty bot bubble was already on
+        // screen — clear it away so only the apology below is shown.
+        if (bubble && !bubble.textContent) bubble.remove();
         addBubble("bot", "Sorry — I couldn't reach the server. Please try again.");
       } finally {
         busy = false;
