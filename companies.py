@@ -18,6 +18,7 @@ COMPANIES = {
     "coverfirst": "CoverFirst",
     "ifihomes": "IFI homes",
     "thirukochi": "Thirukochi Financial Services",
+    "aims": "AIMS Insurance",
 }
 
 # id  ->  the business owner's email, where THAT company's leads get sent.
@@ -27,6 +28,7 @@ LEAD_EMAILS = {
     "coverfirst": "johaanliju@gmail.com",
     "ifihomes": "hazeai2026@gmail.com",
     "thirukochi": "jhoncyjacob@gmail.com",
+    "aims": "",  # falls back to LEAD_TO until they sign up
 }
 
 
