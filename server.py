@@ -37,6 +37,10 @@ ALLOWED_ORIGINS = [
     "https://www.coverfirst.in",
     "https://ifihomes.com",
     "https://www.ifihomes.com",
+    "https://hazeai.in",        # our own landing site (widget demos itself)
+    "https://www.hazeai.in",
+    "http://127.0.0.1:5500",   # local preview of website/ (python -m http.server 5500)
+    "http://localhost:5500",
 ]
 app.add_middleware(
     CORSMiddleware,

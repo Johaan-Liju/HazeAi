@@ -448,14 +448,35 @@
         var reader = res.body.getReader();
         var decoder = new TextDecoder();
         var full = "";
+        var shown = 0;        // how many characters are visible so far
+        var streamDone = false;
+
+        // The network delivers text in lumpy bursts — paint those directly and
+        // the reply appears in pre-written blocks. So the incoming text only
+        // fills a buffer, and this ticker reveals it a few characters at a
+        // time, like someone typing. If the buffer runs far ahead it speeds up
+        // (the >>5 term) so the visitor is never left waiting on an effect.
+        var revealed = new Promise(function (resolve) {
+          (function tick() {
+            var text = tidy(full);
+            if (shown < text.length) {
+              shown += 2 + ((text.length - shown) >> 5);
+              if (shown > text.length) shown = text.length;
+              bubble.textContent = text.slice(0, shown);
+              body.scrollTop = body.scrollHeight;
+            }
+            if (streamDone && shown >= tidy(full).length) resolve();
+            else setTimeout(tick, 24);
+          })();
+        });
+
         while (true) {
           var chunk = await reader.read();
           if (chunk.done) break;
           full += decoder.decode(chunk.value, { stream: true });
-          // repaint the bubble with everything so far, scrubbed of markdown
-          bubble.textContent = tidy(full);
-          body.scrollTop = body.scrollHeight;
         }
+        streamDone = true;
+        await revealed; // let the typing effect finish before wrapping up
         if (full.trim() === "") {
           bubble.textContent = "Sorry — something went wrong. Please try again.";
         } else {
@@ -464,6 +485,7 @@
         }
       } catch (err) {
         typing.remove();
+        streamDone = true; // stops the reveal ticker, if one was running
         // If the stream died mid-reply, an empty bot bubble was already on
         // screen — clear it away so only the apology below is shown.
         if (bubble && !bubble.textContent) bubble.remove();

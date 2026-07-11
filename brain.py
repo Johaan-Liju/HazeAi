@@ -13,7 +13,7 @@ import anthropic
 
 # --- Shared settings ---------------------------------------------------------
 MODEL = "claude-haiku-4-5"   # cheapest capable Claude model
-MAX_TOKENS = 300             # cap answer length to keep replies short & cheap
+MAX_TOKENS = 200             # hard stop well above the one-paragraph rule below
 
 # One Anthropic client, reused for every call. Reads ANTHROPIC_API_KEY from the
 # environment (the key setup you did earlier). The leading underscore is a
@@ -33,8 +33,9 @@ def build_system_prompt(company_name, knowledge):
 
 Answer visitor questions using ONLY the company information provided below.
 Rules:
-- When you can answer from the information, give a helpful answer of about 3 to
-  4 short lines. Stay on topic — be clear and complete, but don't ramble.
+- Reply in ONE short paragraph of 1 to 3 plain sentences — NEVER more, and never
+  use line breaks. If the full answer would be long, give the most useful part
+  in one paragraph and let them ask for more.
 - Do NOT tack on "feel free to contact us", "reach out to us", or push the
   phone/email when you've already answered the question. Just give the answer.
 - ONLY when the answer is not in the information: say you don't have that detail,
