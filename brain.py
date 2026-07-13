@@ -119,8 +119,8 @@ def stream_answer(company_name, knowledge, messages):
 def cost_usd(usage):
     """Rough US-dollar cost of one Claude call, from its token usage (Haiku rates)."""
     return (
-        usage.input_tokens                          # uncached input ($1 / 1M)
-        + usage.cache_creation_input_tokens * 1.25  # cache writes  ($1.25 / 1M)
-        + usage.cache_read_input_tokens * 0.10      # cache reads   ($0.10 / 1M)
-        + usage.output_tokens * 5                   # output        ($5 / 1M)
+        usage.input_tokens                                  # uncached input ($1 / 1M)
+        + (usage.cache_creation_input_tokens or 0) * 1.25   # cache writes  ($1.25 / 1M)
+        + (usage.cache_read_input_tokens or 0) * 0.10       # cache reads   ($0.10 / 1M)
+        + usage.output_tokens * 5                           # output        ($5 / 1M)
     ) / 1_000_000
