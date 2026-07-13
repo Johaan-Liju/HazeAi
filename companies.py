@@ -20,7 +20,8 @@ COMPANIES = {
     "thirukochi": "Thirukochi Financial Services",
     "aims": "AIMS Insurance",
     "finsights": "Finsights by Square League",
-    "hazeai": "Haze AI",  # our own site — the widget on hazeai.in demos itself
+    "hazeai": "Haze AI",
+    "affluenz": "Affluenz wealth"  # our own site — the widget on hazeai.in demos itself
 }
 
 # id  ->  the business owner's email, where THAT company's leads get sent.
@@ -32,7 +33,8 @@ LEAD_EMAILS = {
     "thirukochi": "jhoncyjacob@gmail.com",
     "aims": "",  # falls back to LEAD_TO until they sign up
     "finsights": "",  # falls back to LEAD_TO until they sign up
-    "hazeai": "johaanliju@gmail.com",  # leads from our own site
+    "hazeai": "johaanliju@gmail.com",
+    "affluenz": "johaanliju@gmail.com"  # leads from our own site
 }
 
 
