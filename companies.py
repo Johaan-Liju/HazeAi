@@ -16,12 +16,11 @@ import os
 # id  ->  display name (what the bot calls itself)
 COMPANIES = {
     "coverfirst": "CoverFirst",
-    "ifihomes": "IFI homes",
     "thirukochi": "Thirukochi Financial Services",
-    "aims": "AIMS Insurance",
-    "finsights": "Finsights by Square League",
     "hazeai": "Haze AI",
-    "affluenz": "Affluenz wealth"  # our own site — the widget on hazeai.in demos itself
+    "affluenz": "Affluenz wealth",  # our own site — the widget on hazeai.in demos itself
+    "vasupradah": "Vasupradah Investment Advisory",
+    "insurancekochi": "Insurances Kochi"
 }
 
 # id  ->  the business owner's email, where THAT company's leads get sent.
@@ -31,10 +30,10 @@ LEAD_EMAILS = {
     "coverfirst": "johaanliju@gmail.com",
     "ifihomes": "hazeai2026@gmail.com",
     "thirukochi": "jhoncyjacob@gmail.com",
-    "aims": "",  # falls back to LEAD_TO until they sign up
-    "finsights": "",  # falls back to LEAD_TO until they sign up
     "hazeai": "johaanliju@gmail.com",
-    "affluenz": "johaanliju@gmail.com"  # leads from our own site
+    "affluenz": "johaanliju@gmail.com",  # leads from our own site
+    "vasupradah": "",  # falls back to LEAD_TO until they sign up
+    "insurancekochi": ""  # falls back to LEAD_TO until they sign up
 }
 
 

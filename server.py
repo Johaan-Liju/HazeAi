@@ -44,6 +44,8 @@ ALLOWED_ORIGINS = [
     "http://localhost:5500",
     "http://127.0.0.1:3000",   # landing-site dev server (npm run dev)
     "http://localhost:3000",
+    "https://thirukochi.co.in"
+    "https://www.thirukochi.co.in"
 ]
 app.add_middleware(
     CORSMiddleware,
