@@ -23,6 +23,8 @@ COMPANIES = {
     "insurancekochi": "Insurances Kochi"
     "finsights: Finsights by Square League"
     "AIMS: AIMS Insurance"
+    "Dr Sunny: Dr Sunny's dental clinic"
+    "Skin Secrets: Skin secrets"
 }
 
 # id  ->  the business owner's email, where THAT company's leads get sent.
@@ -37,7 +39,9 @@ LEAD_EMAILS = {
     "vasupradah": "",  # falls back to LEAD_TO until they sign up
     "insurancekochi": ""
     "aims:"
-    "finsights"  # falls back to LEAD_TO until they sign up
+    "finsights"
+    "Dr Sunny"
+      "Skin Secrets"  # falls back to LEAD_TO until they sign up
 }
 
 
