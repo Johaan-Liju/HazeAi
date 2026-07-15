@@ -25,6 +25,7 @@ COMPANIES = {
     "aims": "AIMS Insurance",
     "drsunnys": "Dr Sunny's dental clinic",
     "skinsecrets": "Skin secrets",
+    "dentique": "Dentique - The Dental Studio",
 }
 
 # id  ->  the business owner's email, where THAT company's leads get sent.
@@ -36,12 +37,13 @@ LEAD_EMAILS = {
     "thirukochi": "jhoncyjacob@gmail.com",
     "hazeai": "johaanliju@gmail.com",
     "affluenz": "johaanliju@gmail.com",  # leads from our own site
-    "vasupradah": "",  # falls back to LEAD_TO until they sign up
-    "insurancekochi": "",
-    "aims": "",
-    "finsights": "",
-    "drsunnys": "",
-    "skinsecrets": "",  # falls back to LEAD_TO until they sign up
+    "vasupradah": "johaanliju@gmail.com",  # falls back to LEAD_TO until they sign up
+    "insurancekochi": "johaanliju@gmail.com",
+    "aims": "johaanliju@gmail.com",
+    "finsights": "johaanliju@gmail.com",
+    "drsunnys": "johaanliju@gmail.com",
+    "skinsecrets": "johaanliju@gmail.com",  # falls back to LEAD_TO until they sign up
+    "dentique": "johaanliju@gmail.com",     # falls back to LEAD_TO until they sign up
 }
 
 
