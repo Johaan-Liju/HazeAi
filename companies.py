@@ -26,6 +26,11 @@ COMPANIES = {
     "drsunnys": "Dr Sunny's dental clinic",
     "skinsecrets": "Skin secrets",
     "dentique": "Dentique - The Dental Studio",
+    "edhaswealth": "Edhas Wealth",
+    "kanz": "Kanz Wealth",
+    "wealthmatrix": "Wealth Matrix",
+    "progressplanners": "Progress Planners",
+    "aksonfin": "Akson Fintech",
 }
 
 # id  ->  the business owner's email, where THAT company's leads get sent.
@@ -44,6 +49,11 @@ LEAD_EMAILS = {
     "drsunnys": "johaanliju@gmail.com",
     "skinsecrets": "johaanliju@gmail.com",  # falls back to LEAD_TO until they sign up
     "dentique": "johaanliju@gmail.com",     # falls back to LEAD_TO until they sign up
+    "edhaswealth": "johaanliju@gmail.com",       # demo — until they sign up
+    "kanz": "johaanliju@gmail.com",              # demo — until they sign up
+    "wealthmatrix": "johaanliju@gmail.com",      # demo — until they sign up
+    "progressplanners": "johaanliju@gmail.com",  # demo — until they sign up
+    "aksonfin": "johaanliju@gmail.com",          # demo — until they sign up
 }
 
 
