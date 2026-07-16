@@ -19,7 +19,7 @@ COMPANIES = {
     "thirukochi": "Thirukochi Financial Services",
     "hazeai": "Haze AI",
     "affluenz": "Affluenz wealth",  # our own site — the widget on hazeai.in demos itself
-    "diaz":"Diaz Invest",
+    "diazinvest":"Diaz Invest",
 }
 
 # id  ->  the business owner's email, where THAT company's leads get sent.
