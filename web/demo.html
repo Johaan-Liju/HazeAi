@@ -116,6 +116,8 @@
     <footer>Live demo by Haze AI · the assistant's answers come from
       {{COMPANY_NAME}}'s public website</footer>
 
-    <script src="/widget.js" data-company="{{COMPANY_ID}}" data-title="{{COMPANY_NAME}}" data-open="1"></script>
+    <!-- Absolute, not relative: widget.js points its API calls at this script's
+         own origin, and this page is also served proxied at hazeai.in/demo. -->
+    <script src="https://api.hazeai.in/widget.js" data-company="{{COMPANY_ID}}" data-title="{{COMPANY_NAME}}" data-open="1"></script>
   </body>
 </html>
