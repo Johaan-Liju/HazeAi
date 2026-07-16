@@ -19,18 +19,7 @@ COMPANIES = {
     "thirukochi": "Thirukochi Financial Services",
     "hazeai": "Haze AI",
     "affluenz": "Affluenz wealth",  # our own site — the widget on hazeai.in demos itself
-    "vasupradah": "Vasupradah Investment Advisory",
-    "insurancekochi": "Insurances Kochi",
-    "finsights": "Finsights by Square League",
-    "aims": "AIMS Insurance",
-    "drsunnys": "Dr Sunny's dental clinic",
-    "skinsecrets": "Skin secrets",
-    "dentique": "Dentique - The Dental Studio",
-    "edhaswealth": "Edhas Wealth",
-    "kanz": "Kanz Wealth",
-    "wealthmatrix": "Wealth Matrix",
-    "progressplanners": "Progress Planners",
-    "aksonfin": "Akson Fintech",
+    "diaz":"Diaz Invest",
 }
 
 # id  ->  the business owner's email, where THAT company's leads get sent.
@@ -38,22 +27,10 @@ COMPANIES = {
 # testing with just your own inbox. Fill one in per customer as you onboard them.
 LEAD_EMAILS = {
     "coverfirst": "johaanliju@gmail.com",
-    "ifihomes": "hazeai2026@gmail.com",
     "thirukochi": "jhoncyjacob@gmail.com",
     "hazeai": "johaanliju@gmail.com",
-    "affluenz": "johaanliju@gmail.com",  # leads from our own site
-    "vasupradah": "johaanliju@gmail.com",  # falls back to LEAD_TO until they sign up
-    "insurancekochi": "johaanliju@gmail.com",
-    "aims": "johaanliju@gmail.com",
-    "finsights": "johaanliju@gmail.com",
-    "drsunnys": "johaanliju@gmail.com",
-    "skinsecrets": "johaanliju@gmail.com",  # falls back to LEAD_TO until they sign up
-    "dentique": "johaanliju@gmail.com",     # falls back to LEAD_TO until they sign up
-    "edhaswealth": "johaanliju@gmail.com",       # demo — until they sign up
-    "kanz": "johaanliju@gmail.com",              # demo — until they sign up
-    "wealthmatrix": "johaanliju@gmail.com",      # demo — until they sign up
-    "progressplanners": "johaanliju@gmail.com",  # demo — until they sign up
-    "aksonfin": "johaanliju@gmail.com",          # demo — until they sign up
+    "affluenz": "johaanliju@gmail.com",  # leads from our own site,  # falls back to LEAD_TO until they sign up
+    "diazinvest": "johaanliju@gmail.com"    # falls back to LEAD_TO until they sign up
 }
 
 
