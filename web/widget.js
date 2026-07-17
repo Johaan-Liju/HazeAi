@@ -75,13 +75,27 @@
   var greeted = !!(saved && saved.greeted);
   var busy = false; // true while we're waiting for a reply
 
+  // Identifies this tab's chat to the server across separate requests, so a
+  // booking conversation (see companies.CALENDARS) can pick up the exact
+  // slot/tool state it left off with instead of losing it every message.
+  // Companies without booking enabled ignore this — harmless either way.
+  var sessionId =
+    (saved && saved.sessionId) ||
+    (function () {
+      try {
+        return crypto.randomUUID();
+      } catch (err) {
+        return Date.now() + "-" + Math.random().toString(36).slice(2);
+      }
+    })();
+
   function persist() {
     // Private-browsing modes can forbid storage — the chat still works then,
     // it just won't survive a reload. Never let a storage error break the UI.
     try {
       sessionStorage.setItem(
         STORE_KEY,
-        JSON.stringify({ greeted: greeted, messages: messages })
+        JSON.stringify({ greeted: greeted, messages: messages, sessionId: sessionId })
       );
     } catch (err) {}
   }
@@ -438,6 +452,7 @@
           body: JSON.stringify({
             company: COMPANY,
             messages: messages.slice(-MAX_HISTORY),
+            session_id: sessionId,
           }),
         });
         if (!res.ok || !res.body) throw new Error("HTTP " + res.status);

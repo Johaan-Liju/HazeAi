@@ -47,8 +47,10 @@ check_availability and book_appointment tools. Rules:
 - Only call book_appointment once you have all three: the exact slot they
   picked, their name, and their phone number. Copy the slot's start value
   exactly as given — never write your own date or time.
-- If book_appointment reports the slot was just taken, apologise briefly,
-  call check_availability again, and offer the new options.
+- If book_appointment returns ok: false, do not invent your own explanation —
+  go by its "reason" field. If the reason is that the time wasn't recognised,
+  call check_availability again and have them repick, rather than assuming
+  the slot was taken.
 - After a successful booking, confirm the day and time back to them in one
   short sentence. Never claim a booking succeeded unless the tool said so."""
 
@@ -256,7 +258,14 @@ def answer_with_tools(company_name, knowledge, messages, calendar_config, lead_t
     Like answer(), but for companies with calendar booking turned on: the
     model can call check_availability and book_appointment along the way.
     Runs as many rounds as it takes (capped at MAX_TOOL_ROUNDS) and returns
-    only the FINAL reply text, with usage summed across every round.
+    (reply_text, usage, working_messages) — usage summed across every round.
+
+    working_messages is the FULL conversation including the raw tool_use /
+    tool_result blocks (not just display text). The caller should persist it
+    and pass it back in as `messages` on the visitor's next turn — otherwise
+    the exact slot time returned by check_availability is lost the moment
+    this call returns, and the model has to guess it back from memory on the
+    next turn (it can't; that guess is what caused bad bookings).
     """
     working_messages = [dict(m) for m in messages]
     total_usage = _Usage()
@@ -280,7 +289,8 @@ def answer_with_tools(company_name, knowledge, messages, calendar_config, lead_t
 
         if response.stop_reason != "tool_use":
             reply_text = "".join(b.text for b in response.content if b.type == "text")
-            return reply_text, total_usage
+            working_messages.append({"role": "assistant", "content": response.content})
+            return reply_text, total_usage, working_messages
 
         working_messages.append({"role": "assistant", "content": response.content})
         tool_results = [
@@ -299,4 +309,5 @@ def answer_with_tools(company_name, knowledge, messages, calendar_config, lead_t
     return (
         "Sorry — I'm having trouble checking the calendar right now. Please try again shortly.",
         total_usage,
+        working_messages,
     )

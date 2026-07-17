@@ -73,6 +73,9 @@ class ChatRequest(BaseModel):
     company: str = Field(max_length=64)
     # At least 1 message, at most 20 (the widget only sends the last 10 anyway).
     messages: list[Message] = Field(min_length=1, max_length=20)
+    # One tab's chat session (see widget.js). Only used for booking-enabled
+    # companies, to remember the real tool-call history — see _SESSIONS below.
+    session_id: str | None = Field(default=None, max_length=64)
 
 
 class ChatReply(BaseModel):
@@ -163,6 +166,44 @@ def _resolve(payload: ChatRequest):
     return company_name, knowledge, messages
 
 
+# --- Booking session memory --------------------------------------------------
+# Plain chat history is just display text (see Message above) — fine for the
+# no-tools path, but a booking conversation needs the raw tool_use/tool_result
+# blocks too (e.g. the exact ISO time check_availability returned), or the
+# model has to guess that value back from memory on the visitor's next
+# message and gets it wrong. So for booking-enabled companies we keep the
+# real working-messages history here, keyed by the widget's per-tab session
+# id, and use THAT instead of re-deriving from display text.
+#
+# In-memory is enough: this app runs a single worker (WEB_CONCURRENCY=1), and
+# losing sessions on a redeploy just falls back to today's behaviour below.
+_SESSIONS: dict[str, list[dict]] = {}
+MAX_SESSIONS = 500          # cap memory use if visitors pile up
+MAX_SESSION_MESSAGES = 20   # cap token cost on a very long-running chat
+
+
+def _booking_messages(payload: ChatRequest, text_messages: list[dict]):
+    """
+    The messages to send the model for a booking turn: the stored raw history
+    for this session with just the newest turn appended, or — if there's no
+    known session yet — the plain-text history like before.
+    """
+    if payload.session_id and payload.session_id in _SESSIONS:
+        newest = payload.messages[-1]
+        return _SESSIONS[payload.session_id] + [
+            {"role": newest.role, "content": newest.content}
+        ]
+    return text_messages
+
+
+def _remember_session(session_id, working_messages):
+    if not session_id:
+        return
+    _SESSIONS[session_id] = working_messages[-MAX_SESSION_MESSAGES:]
+    if len(_SESSIONS) > MAX_SESSIONS:
+        _SESSIONS.pop(next(iter(_SESSIONS)))  # drop the oldest session
+
+
 @app.post("/chat", response_model=ChatReply)
 def chat(payload: ChatRequest, request: Request):
     """Take the conversation (for a specific company), ask the brain, reply."""
@@ -171,9 +212,11 @@ def chat(payload: ChatRequest, request: Request):
     booking = calendar_config(payload.company)
 
     if booking:
-        reply, usage = brain.answer_with_tools(
-            company_name, knowledge, messages, booking, lead_email(payload.company)
+        reply, usage, working_messages = brain.answer_with_tools(
+            company_name, knowledge, _booking_messages(payload, messages), booking,
+            lead_email(payload.company),
         )
+        _remember_session(payload.session_id, working_messages)
     else:
         reply, usage = brain.answer(company_name, knowledge, messages)
     print(
@@ -197,9 +240,11 @@ def chat_stream(payload: ChatRequest, request: Request):
         # The widget reveals text with its own typing effect regardless of
         # how many network chunks it arrives in, so the UX is unchanged.
         def generate():
-            reply, usage = brain.answer_with_tools(
-                company_name, knowledge, messages, booking, lead_email(payload.company)
+            reply, usage, working_messages = brain.answer_with_tools(
+                company_name, knowledge, _booking_messages(payload, messages), booking,
+                lead_email(payload.company),
             )
+            _remember_session(payload.session_id, working_messages)
             yield reply
             print(
                 f"[/chat/stream {payload.company}] out {usage.output_tokens} tokens "
