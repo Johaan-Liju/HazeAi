@@ -29,7 +29,7 @@ LEAD_EMAILS = {
     "coverfirst": "johaanliju@gmail.com",
     "thirukochi": "jhoncyjacob@gmail.com",
     "hazeai": "johaanliju@gmail.com",
-    "affluenz": "johaanliju@gmail.com",  # leads from our own site,  # falls back to LEAD_TO until they sign up
+    "affluenz": "support@affluenzwealth.com",  # leads from our own site,  # falls back to LEAD_TO until they sign up
     "diazinvest": "johaanliju@gmail.com"    # falls back to LEAD_TO until they sign up
 }
 
