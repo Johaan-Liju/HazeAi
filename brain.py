@@ -210,14 +210,18 @@ class _Usage:
 
 def _run_tool(tool_name, tool_input, calendar_config, company_name, lead_to_email):
     """Execute one booking tool call and return a JSON-serialisable result."""
+    print(f"[tool] {tool_name} input={tool_input}")
+
     if tool_name == "check_availability":
         slots = gcal.find_slots(calendar_config)
-        return {
+        result = {
             "slots": [
                 {"start": start.isoformat(), "label": gcal.format_slot(start)}
                 for start, _end in slots
             ]
         }
+        print(f"[tool] check_availability -> {result}")
+        return result
 
     if tool_name == "book_appointment":
         name = tool_input.get("name", "").strip()
@@ -225,19 +229,22 @@ def _run_tool(tool_name, tool_input, calendar_config, company_name, lead_to_emai
         try:
             start = datetime.datetime.fromisoformat(tool_input.get("start", ""))
         except ValueError:
+            print(f"[tool] book_appointment -> bad start value {tool_input.get('start')!r}")
             return {"ok": False, "reason": "that time wasn't recognised — check availability again"}
 
         try:
-            gcal.book_slot(
+            event_id = gcal.book_slot(
                 calendar_config,
                 start,
                 summary=f"{name} — booked via {company_name} chatbot",
                 description=f"Phone: {phone}",
             )
         except gcal.SlotTaken:
+            print(f"[tool] book_appointment -> SlotTaken for {start.isoformat()}")
             return {"ok": False, "reason": "that slot was just taken by someone else"}
 
         label = gcal.format_slot(start)
+        print(f"[tool] book_appointment -> ok, event_id={event_id}, {label}")
         mailer.send_lead(company_name, lead_to_email, phone, f"Booked appointment for {label} (name: {name})")
         return {"ok": True, "confirmed": label}
 
