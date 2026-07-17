@@ -42,3 +42,34 @@ def knowledge_path(company_id):
 def lead_email(company_id):
     """Which inbox this company's leads go to (its own, or the LEAD_TO fallback)."""
     return LEAD_EMAILS.get(company_id) or os.environ.get("LEAD_TO", "")
+
+
+# id -> booking configuration. A company's PRESENCE in this dict is what turns
+# on calendar booking for their bot — leave a company out and their bot works
+# exactly as before, no calendar involved.
+#
+#   calendar_id:   the Google Calendar to read/write — an email address, or a
+#                  calendar ID from that calendar's Settings page. The client
+#                  must first share this calendar with the bot's service
+#                  account (its email is inside the key file gcal.py reads),
+#                  with "Make changes to events" permission.
+#   timezone:      an IANA name, e.g. "Asia/Kolkata"
+#   work_hours:    (start_hour, end_hour) in 24-hour local time, e.g. (10, 18)
+#   work_days:     which weekdays are workdays — 0=Monday ... 6=Sunday
+#   slot_minutes:  length of one appointment slot
+CALENDARS = {
+    # Sandbox for testing the booking feature before it's offered to a real
+    # client — points at Johaan's own calendar, wired to the "hazeai" demo bot.
+    "hazeai": {
+        "calendar_id": "johaanliju@gmail.com",
+        "timezone": "Asia/Kolkata",
+        "work_hours": (10, 18),
+        "work_days": [0, 1, 2, 3, 4, 5],
+        "slot_minutes": 30,
+    },
+}
+
+
+def calendar_config(company_id):
+    """This company's booking config, or None if booking isn't turned on for them."""
+    return CALENDARS.get(company_id)

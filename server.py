@@ -22,7 +22,7 @@ from pydantic import BaseModel, Field
 import brain
 import guardrails
 import mailer
-from companies import COMPANIES, knowledge_path, lead_email
+from companies import COMPANIES, calendar_config, knowledge_path, lead_email
 
 app = FastAPI()
 
@@ -168,8 +168,14 @@ def chat(payload: ChatRequest, request: Request):
     """Take the conversation (for a specific company), ask the brain, reply."""
     guardrails.check_rate_limit(request)
     company_name, knowledge, messages = _resolve(payload)
+    booking = calendar_config(payload.company)
 
-    reply, usage = brain.answer(company_name, knowledge, messages)
+    if booking:
+        reply, usage = brain.answer_with_tools(
+            company_name, knowledge, messages, booking, lead_email(payload.company)
+        )
+    else:
+        reply, usage = brain.answer(company_name, knowledge, messages)
     print(
         f"[/chat {payload.company}] out {usage.output_tokens} tokens "
         f"· ~${brain.cost_usd(usage):.5f}"
@@ -182,6 +188,25 @@ def chat_stream(payload: ChatRequest, request: Request):
     """Same as /chat, but streams the reply back piece by piece (used by the widget)."""
     guardrails.check_rate_limit(request)
     company_name, knowledge, messages = _resolve(payload)
+    booking = calendar_config(payload.company)
+
+    if booking:
+        # A booking turn calls out to the Calendar API mid-conversation, so
+        # there's no partial text from Claude to stream as it's produced —
+        # get the finished reply, then hand it to the widget in one piece.
+        # The widget reveals text with its own typing effect regardless of
+        # how many network chunks it arrives in, so the UX is unchanged.
+        def generate():
+            reply, usage = brain.answer_with_tools(
+                company_name, knowledge, messages, booking, lead_email(payload.company)
+            )
+            yield reply
+            print(
+                f"[/chat/stream {payload.company}] out {usage.output_tokens} tokens "
+                f"· ~${brain.cost_usd(usage):.5f}"
+            )
+
+        return StreamingResponse(generate(), media_type="text/plain")
 
     def generate():
         # Open the stream, hand each piece of text straight out to the browser.

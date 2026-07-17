@@ -9,7 +9,13 @@ import from this file. So there's a single source of truth for the model, the
 cost settings, and the grounding rules — change them once, everything updates.
 """
 
+import datetime
+import json
+
 import anthropic
+
+import gcal
+import mailer
 
 # --- Shared settings ---------------------------------------------------------
 MODEL = "claude-haiku-4-5"   # cheapest capable Claude model
@@ -27,7 +33,27 @@ def load_knowledge(path):
         return f.read().strip()
 
 
-def build_system_prompt(company_name, knowledge):
+BOOKING_INSTRUCTIONS = """
+
+You can also check appointment availability and book a slot, using the
+check_availability and book_appointment tools. Rules:
+- If a visitor wants to book, schedule, or asks about coming in for a meeting
+  or appointment, call check_availability — never guess or invent times.
+- Offer at most 3 of the returned slots, in one flowing plain-text sentence
+  (e.g. "I have Thu, Jul 23 at 11:30 AM, Fri, Jul 24 at 2:00 PM, or Mon, Jul
+  27 at 10:00 AM - which works?").
+- Once they pick one of those EXACT slots, ask for their name and phone
+  number if you don't have them yet.
+- Only call book_appointment once you have all three: the exact slot they
+  picked, their name, and their phone number. Copy the slot's start value
+  exactly as given — never write your own date or time.
+- If book_appointment reports the slot was just taken, apologise briefly,
+  call check_availability again, and offer the new options.
+- After a successful booking, confirm the day and time back to them in one
+  short sentence. Never claim a booking succeeded unless the tool said so."""
+
+
+def build_system_prompt(company_name, knowledge, booking_enabled=False):
     """The instructions that turn Claude into a grounded, on-topic support bot."""
     return f"""You are the customer support assistant for {company_name}.
 
@@ -46,6 +72,7 @@ Rules:
   does not render formatting. No markdown: no asterisks, no **bold**, no
   bullet-point lists, no headers, no backticks. If you need to list things,
   write them as short plain lines or a flowing sentence.
+{BOOKING_INSTRUCTIONS if booking_enabled else ""}
 
 ===== COMPANY INFORMATION =====
 {knowledge}
@@ -124,3 +151,145 @@ def cost_usd(usage):
         + (usage.cache_read_input_tokens or 0) * 0.10       # cache reads   ($0.10 / 1M)
         + usage.output_tokens * 5                           # output        ($5 / 1M)
     ) / 1_000_000
+
+
+# --- Calendar booking (only used for companies with a calendar_config) ------
+_BOOKING_TOOLS = [
+    {
+        "name": "check_availability",
+        "description": (
+            "Look up the next open appointment slots on the calendar. Call "
+            "this whenever a visitor wants to book, schedule, or asks about "
+            "coming in for a meeting or appointment — never guess times."
+        ),
+        "input_schema": {"type": "object", "properties": {}},
+    },
+    {
+        "name": "book_appointment",
+        "description": (
+            "Reserve one of the exact slots returned by check_availability. "
+            "Only call this once the visitor has picked one of those exact "
+            "times AND given their name and phone number."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "start": {
+                    "type": "string",
+                    "description": (
+                        "The chosen slot's 'start' value, copied exactly as "
+                        "given by check_availability — never write your own."
+                    ),
+                },
+                "name": {"type": "string", "description": "The visitor's name."},
+                "phone": {"type": "string", "description": "The visitor's phone number."},
+            },
+            "required": ["start", "name", "phone"],
+        },
+    },
+]
+
+MAX_TOOL_ROUNDS = 4  # safety cap so a confused model can't loop forever
+
+
+class _Usage:
+    """Accumulates token usage across several Claude calls (one tool round each)."""
+
+    def __init__(self):
+        self.input_tokens = 0
+        self.output_tokens = 0
+        self.cache_creation_input_tokens = 0
+        self.cache_read_input_tokens = 0
+
+    def add(self, usage):
+        self.input_tokens += usage.input_tokens
+        self.output_tokens += usage.output_tokens
+        self.cache_creation_input_tokens += usage.cache_creation_input_tokens or 0
+        self.cache_read_input_tokens += usage.cache_read_input_tokens or 0
+
+
+def _run_tool(tool_name, tool_input, calendar_config, company_name, lead_to_email):
+    """Execute one booking tool call and return a JSON-serialisable result."""
+    if tool_name == "check_availability":
+        slots = gcal.find_slots(calendar_config)
+        return {
+            "slots": [
+                {"start": start.isoformat(), "label": gcal.format_slot(start)}
+                for start, _end in slots
+            ]
+        }
+
+    if tool_name == "book_appointment":
+        name = tool_input.get("name", "").strip()
+        phone = tool_input.get("phone", "").strip()
+        try:
+            start = datetime.datetime.fromisoformat(tool_input.get("start", ""))
+        except ValueError:
+            return {"ok": False, "reason": "that time wasn't recognised — check availability again"}
+
+        try:
+            gcal.book_slot(
+                calendar_config,
+                start,
+                summary=f"{name} — booked via {company_name} chatbot",
+                description=f"Phone: {phone}",
+            )
+        except gcal.SlotTaken:
+            return {"ok": False, "reason": "that slot was just taken by someone else"}
+
+        label = gcal.format_slot(start)
+        mailer.send_lead(company_name, lead_to_email, phone, f"Booked appointment for {label} (name: {name})")
+        return {"ok": True, "confirmed": label}
+
+    return {"error": f"unknown tool {tool_name}"}
+
+
+def answer_with_tools(company_name, knowledge, messages, calendar_config, lead_to_email):
+    """
+    Like answer(), but for companies with calendar booking turned on: the
+    model can call check_availability and book_appointment along the way.
+    Runs as many rounds as it takes (capped at MAX_TOOL_ROUNDS) and returns
+    only the FINAL reply text, with usage summed across every round.
+    """
+    working_messages = [dict(m) for m in messages]
+    total_usage = _Usage()
+    system = [
+        {
+            "type": "text",
+            "text": build_system_prompt(company_name, knowledge, booking_enabled=True),
+            "cache_control": {"type": "ephemeral"},
+        }
+    ]
+
+    for _ in range(MAX_TOOL_ROUNDS):
+        response = _client.messages.create(
+            model=MODEL,
+            max_tokens=MAX_TOKENS,
+            system=system,
+            messages=working_messages,
+            tools=_BOOKING_TOOLS,
+        )
+        total_usage.add(response.usage)
+
+        if response.stop_reason != "tool_use":
+            reply_text = "".join(b.text for b in response.content if b.type == "text")
+            return reply_text, total_usage
+
+        working_messages.append({"role": "assistant", "content": response.content})
+        tool_results = [
+            {
+                "type": "tool_result",
+                "tool_use_id": block.id,
+                "content": json.dumps(
+                    _run_tool(block.name, block.input, calendar_config, company_name, lead_to_email)
+                ),
+            }
+            for block in response.content
+            if block.type == "tool_use"
+        ]
+        working_messages.append({"role": "user", "content": tool_results})
+
+    return (
+        "Sorry — I'm having trouble checking the calendar right now. Please try again shortly.",
+        total_usage,
+    )
