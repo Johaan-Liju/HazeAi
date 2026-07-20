@@ -20,6 +20,11 @@ COMPANIES = {
     "hazeai": "Haze AI",
     "affluenz": "Affluenz wealth",  # our own site — the widget on hazeai.in demos itself
     "diazinvest":"Diaz Invest",
+    # Reusable sales demos (fictional businesses) — send these links to any
+    # prospect in that industry so they can experience the bot before you build
+    # them their own. Booking is turned on for both (see CALENDARS below).
+    "clinicdemo": "Brightview Dental Studio",
+    "financedemo": "Meridian Wealth",
 }
 
 # id  ->  the business owner's email, where THAT company's leads get sent.
@@ -30,7 +35,9 @@ LEAD_EMAILS = {
     "thirukochi": "jhoncyjacob@gmail.com",
     "hazeai": "johaanliju@gmail.com",
     "affluenz": "support@affluenzwealth.com",  # leads from our own site,  # falls back to LEAD_TO until they sign up
-    "diazinvest": "johaanliju@gmail.com"    # falls back to LEAD_TO until they sign up
+    "diazinvest": "johaanliju@gmail.com",    # falls back to LEAD_TO until they sign up
+    "clinicdemo": "johaanliju@gmail.com",    # demo leads come to you
+    "financedemo": "johaanliju@gmail.com",   # demo leads come to you
 }
 
 
@@ -65,6 +72,23 @@ CALENDARS = {
         "timezone": "Asia/Kolkata",
         "work_hours": (10, 18),
         "work_days": [0, 1, 2, 3, 4, 5],
+        "slot_minutes": 30,
+    },
+    # Dental demo: Mon–Sat, 9am–7pm, 30-min slots. Points at the same sandbox
+    # calendar so a prospect's test booking really lands in your Google Calendar.
+    "clinicdemo": {
+        "calendar_id": "johaanliju@gmail.com",
+        "timezone": "Asia/Kolkata",
+        "work_hours": (9, 19),
+        "work_days": [0, 1, 2, 3, 4, 5],
+        "slot_minutes": 30,
+    },
+    # Finance demo: Mon–Fri, 10am–6pm, 30-min "free consultation" slots.
+    "financedemo": {
+        "calendar_id": "johaanliju@gmail.com",
+        "timezone": "Asia/Kolkata",
+        "work_hours": (10, 18),
+        "work_days": [0, 1, 2, 3, 4],
         "slot_minutes": 30,
     },
 }
