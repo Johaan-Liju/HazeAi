@@ -85,13 +85,21 @@ def _knowledge(company_id):
 
 
 # --- Webhook verification (GET) ---------------------------------------------
+# TEMPORARY (debug): records the most recent verification attempt so the
+# /whatsapp/debug endpoint can show EXACTLY what Meta sent — repr() reveals
+# hidden spaces, en-dashes, or capitals. Remove once the webhook is verified.
+LAST_VERIFY = {"mode": None, "token": None, "challenge": None, "matched": None}
+
+
 def verify_webhook(mode, token, challenge):
     """
     Meta calls GET /whatsapp/webhook once, when you first save the webhook, to
     prove you own the server. Echo the challenge back ONLY if the verify token
     it sends matches ours. Returns the challenge string on success, or None.
     """
-    if mode == "subscribe" and token and token == VERIFY_TOKEN:
+    matched = mode == "subscribe" and bool(token) and token == VERIFY_TOKEN
+    LAST_VERIFY.update(mode=mode, token=token, challenge=challenge, matched=matched)
+    if matched:
         return challenge
     return None
 

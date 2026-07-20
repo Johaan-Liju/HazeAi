@@ -322,6 +322,19 @@ def whatsapp_verify(
     return PlainTextResponse(challenge)
 
 
+@app.get("/whatsapp/debug")
+def whatsapp_debug():
+    """TEMPORARY: shows the exact verify token Meta last sent vs what we expect,
+    with repr() so hidden characters (spaces, en-dashes, capitals) are visible.
+    Remove once the webhook is verified."""
+    return {
+        "received_token": repr(whatsapp.LAST_VERIFY["token"]),
+        "expected_token": repr(whatsapp.VERIFY_TOKEN),
+        "received_mode": repr(whatsapp.LAST_VERIFY["mode"]),
+        "matched": whatsapp.LAST_VERIFY["matched"],
+    }
+
+
 @app.post("/whatsapp/webhook")
 async def whatsapp_incoming(request: Request, background: BackgroundTasks):
     """
