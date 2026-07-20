@@ -121,6 +121,15 @@ def widget_js():
     )
 
 
+@app.get("/privacy")
+def privacy():
+    """Our public privacy policy. Meta requires a reachable Privacy Policy URL
+    before a WhatsApp app can be published to Live mode — this serves it."""
+    return FileResponse(
+        "web/privacy.html", media_type="text/html", headers=ALWAYS_REVALIDATE
+    )
+
+
 # Shown when a demo link points at a company that isn't set up (typo, or a
 # prospect forwarding an old link). Friendly, and turns even a dead link into
 # a contact opportunity.
