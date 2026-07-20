@@ -97,3 +97,25 @@ CALENDARS = {
 def calendar_config(company_id):
     """This company's booking config, or None if booking isn't turned on for them."""
     return CALENDARS.get(company_id)
+
+
+# id -> which WhatsApp number belongs to this company. The KEY is the
+# "phone_number_id" Meta shows for that number in your app dashboard — NOT the
+# phone number itself. On WhatsApp there's no widget to announce the company, so
+# we tell companies apart by which of your numbers a message arrived on. Fill one
+# line in per client as you connect their WhatsApp number.
+WHATSAPP_NUMBERS = {
+    # "123456789012345": "clinicdemo",
+}
+
+
+def whatsapp_company(phone_number_id):
+    """
+    Which company owns this WhatsApp number — from the mapping above, or the
+    WHATSAPP_DEFAULT_COMPANY environment variable as a fallback (handy while
+    you're testing with Meta's single free test number, so one number can stand
+    in for any demo without editing code).
+    """
+    return WHATSAPP_NUMBERS.get(phone_number_id) or os.environ.get(
+        "WHATSAPP_DEFAULT_COMPANY", ""
+    )

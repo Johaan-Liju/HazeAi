@@ -11,17 +11,24 @@ Run it:   uvicorn server:app --reload
 Test at http://127.0.0.1:8000/docs , demo at http://127.0.0.1:8000/demo
 """
 
+import json
 from html import escape
 from typing import Literal
 
-from fastapi import BackgroundTasks, FastAPI, HTTPException, Request
+from fastapi import BackgroundTasks, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
+from fastapi.responses import (
+    FileResponse,
+    HTMLResponse,
+    PlainTextResponse,
+    StreamingResponse,
+)
 from pydantic import BaseModel, Field
 
 import brain
 import guardrails
 import mailer
+import whatsapp
 from companies import COMPANIES, calendar_config, knowledge_path, lead_email
 
 app = FastAPI()
@@ -285,4 +292,37 @@ def lead(payload: LeadRequest, request: Request, background: BackgroundTasks):
         mailer.send_lead,
         company_name, lead_email(payload.company), payload.phone, payload.question,
     )
+    return {"ok": True}
+
+
+# --- WhatsApp (Meta Cloud API) ----------------------------------------------
+# Two endpoints, both at the same path (Meta requires that):
+#   GET  — the one-time handshake Meta does when you save the webhook.
+#   POST — every incoming customer message (and delivery/read receipts).
+# See whatsapp.py for how a message becomes an answer.
+@app.get("/whatsapp/webhook")
+def whatsapp_verify(
+    hub_mode: str = Query("", alias="hub.mode"),
+    hub_verify_token: str = Query("", alias="hub.verify_token"),
+    hub_challenge: str = Query("", alias="hub.challenge"),
+):
+    """Meta's verification handshake — echo the challenge if the token matches."""
+    challenge = whatsapp.verify_webhook(hub_mode, hub_verify_token, hub_challenge)
+    if challenge is None:
+        raise HTTPException(status_code=403, detail="verify token mismatch")
+    return PlainTextResponse(challenge)
+
+
+@app.post("/whatsapp/webhook")
+async def whatsapp_incoming(request: Request, background: BackgroundTasks):
+    """
+    An incoming WhatsApp event. We answer in the BACKGROUND and return 200
+    immediately — Meta retries anything we're slow to acknowledge, which would
+    otherwise double-send replies.
+    """
+    raw = await request.body()
+    if not whatsapp.valid_signature(raw, request.headers.get("X-Hub-Signature-256")):
+        raise HTTPException(status_code=403, detail="bad signature")
+    payload = json.loads(raw)
+    background.add_task(whatsapp.process, payload)
     return {"ok": True}
