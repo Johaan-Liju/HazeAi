@@ -25,6 +25,9 @@ COMPANIES = {
     # them their own. Booking is turned on for both (see CALENDARS below).
     "clinicdemo": "Brightview Dental Studio",
     "financedemo": "Meridian Wealth",
+    # Real-clinic outreach demo (Athens, Greece) — built from the clinic's public
+    # info so we can send them their own working bot. Answers in Greek.
+    "athensdental": "The Dental Clinic",
 }
 
 # id  ->  the business owner's email, where THAT company's leads get sent.
@@ -38,6 +41,7 @@ LEAD_EMAILS = {
     "diazinvest": "johaanliju@gmail.com",    # falls back to LEAD_TO until they sign up
     "clinicdemo": "johaanliju@gmail.com",    # demo leads come to you
     "financedemo": "johaanliju@gmail.com",   # demo leads come to you
+    "athensdental": "johaanliju@gmail.com",  # demo leads come to you
 }
 
 
@@ -81,6 +85,16 @@ CALENDARS = {
         "timezone": "Asia/Kolkata",
         "work_hours": (9, 19),
         "work_days": [0, 1, 2, 3, 4, 5],
+        "slot_minutes": 30,
+    },
+    # Athens dental outreach demo: Mon–Fri, 9:30am–9pm (rounded to 10–21),
+    # 30-min slots, in Athens local time. Points at the same sandbox calendar so
+    # a test booking really lands in your Google Calendar.
+    "athensdental": {
+        "calendar_id": "johaanliju@gmail.com",
+        "timezone": "Europe/Athens",
+        "work_hours": (10, 21),
+        "work_days": [0, 1, 2, 3, 4],
         "slot_minutes": 30,
     },
     # Finance demo: Mon–Fri, 10am–6pm, 30-min "free consultation" slots.

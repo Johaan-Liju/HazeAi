@@ -253,9 +253,13 @@
       font-family: inherit; font-size: 14px; }
     .cbw-lead-cancel:hover { background: #e4e6ef; }
 
-    /* the tiny "Powered by Haze AI" strip at the very bottom */
-    .cbw-brand { text-align: center; font-size: 11px; color: #9a9ab0;
-      background: #fff; padding: 0 0 8px; letter-spacing: .2px; }
+    /* the tiny "Powered by Haze AI" strip at the very bottom — a link home.
+       It lives in the shadow root, but an <a> still carries the browser's
+       default blue + underline, so we reset colour and text-decoration here. */
+    .cbw-brand { display: block; text-align: center; font-size: 11px;
+      color: #9a9ab0; background: #fff; padding: 0 0 8px; letter-spacing: .2px;
+      text-decoration: none; cursor: pointer; transition: color .15s; }
+    .cbw-brand:hover { color: #7c7c99; }
     .cbw-brand b { font-weight: 600; color: #7c7c99; }
   `;
 
@@ -318,7 +322,7 @@
       '    <button class="cbw-send" title="Send">' + ICON_SEND + "</button>" +
       "  </div>" +
       '  <button class="cbw-leadlink">📞 Leave your number for a callback</button>' +
-      '  <div class="cbw-brand">⚡ Powered by <b>Haze AI</b></div>' +
+      '  <a class="cbw-brand" href="https://hazeai.in" target="_blank" rel="noopener noreferrer">⚡ Powered by <b>Haze AI</b></a>' +
       "</div>";
     mount.appendChild(root);
     document.body.appendChild(host);

@@ -19,7 +19,12 @@ import mailer
 
 # --- Shared settings ---------------------------------------------------------
 MODEL = "claude-haiku-4-5"   # cheapest capable Claude model
-MAX_TOKENS = 200             # hard stop well above the one-paragraph rule below
+MAX_TOKENS = 320             # hard stop above the one-paragraph rule below. Greek
+                             # and other non-Latin scripts tokenize less
+                             # efficiently than English, so 200 truncated otherwise
+                             # complete answers mid-word. Raising the cap adds no
+                             # cost to answers that already finished early — it only
+                             # lets the longer ones complete.
 
 # One Anthropic client, reused for every call. Reads ANTHROPIC_API_KEY from the
 # environment (the key setup you did earlier). The leading underscore is a
