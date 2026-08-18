@@ -46,10 +46,11 @@ Output ONLY the knowledge base text — no preamble, no explanation."""
 
 def main():
     if len(sys.argv) < 2:
-        print("Usage: python clean.py <path-to-knowledge-file>")
+        print("Usage: python clean.py <path-to-knowledge-file> [output-file]")
         return
 
     path = sys.argv[1]
+    out_path = sys.argv[2] if len(sys.argv) > 2 else path
     raw = brain.load_knowledge(path)
     print(f"Raw file: {len(raw):,} characters. Cleaning with {brain.MODEL}…")
 
@@ -66,7 +67,7 @@ def main():
         print("Got an empty result — leaving the file untouched.")
         return
 
-    with open(path, "w", encoding="utf-8") as f:
+    with open(out_path, "w", encoding="utf-8") as f:
         f.write(cleaned + "\n")
 
     cost = brain.cost_usd(response.usage)

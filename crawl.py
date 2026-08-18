@@ -115,8 +115,8 @@ def extract_lines(soup):
 def main():
     if len(sys.argv) < 2:
         sys.exit(
-            "Usage: python crawl.py <website-url> [max-pages]\n"
-            "Example: python crawl.py https://coverfirst.in"
+            "Usage: python crawl.py <website-url> [max-pages] [output-file]\n"
+            "Example: python crawl.py https://coverfirst.in 100 coverfirst.txt"
         )
 
     # Accept a bare domain like "coverfirst.in" by adding the scheme.
@@ -125,6 +125,7 @@ def main():
         raw = "https://" + raw
     start_url = normalize(raw)
     max_pages = int(sys.argv[2]) if len(sys.argv) > 2 else MAX_PAGES
+    output_file = sys.argv[3] if len(sys.argv) > 3 else OUTPUT_FILE
     site = domain_of(start_url)
 
     # Respect the site's robots.txt (the rules it publishes for crawlers).
@@ -143,7 +144,7 @@ def main():
 
     print(f"Crawling {site} (up to {max_pages} pages)...\n")
 
-    with open(OUTPUT_FILE, "w", encoding="utf-8") as out:
+    with open(output_file, "w", encoding="utf-8") as out:
         while queue and pages_saved < max_pages:
             url = queue.pop(0)
             if url in visited:
@@ -180,7 +181,7 @@ def main():
 
             time.sleep(DELAY_SECONDS)
 
-    print(f"\nDone. Saved {pages_saved} pages to {OUTPUT_FILE}.")
+    print(f"\nDone. Saved {pages_saved} pages to {output_file}.")
     print("Skim the file and delete any leftover menu/button/junk text before using it —")
     print("cleaner knowledge means better, cheaper answers.")
 

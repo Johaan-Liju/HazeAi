@@ -20,6 +20,8 @@ COMPANIES = {
     "hazeai": "Haze AI",
     "affluenz": "Affluenz wealth",  # our own site — the widget on hazeai.in demos itself
     "diazinvest":"Diaz Invest",
+    "icad": "ICAD",
+    "caddcentre": "CADD Centre",
     # Reusable sales demos (fictional businesses) — send these links to any
     # prospect in that industry so they can experience the bot before you build
     # them their own. Booking is turned on for both (see CALENDARS below).
@@ -39,6 +41,8 @@ LEAD_EMAILS = {
     "hazeai": "johaanliju@gmail.com",
     "affluenz": "support@affluenzwealth.com",  # leads from our own site,  # falls back to LEAD_TO until they sign up
     "diazinvest": "johaanliju@gmail.com",    # falls back to LEAD_TO until they sign up
+    "icad": "johaanliju@gmail.com",
+    "caddcentre": "johaanliju@gmail.com",
     "clinicdemo": "johaanliju@gmail.com",    # demo leads come to you
     "financedemo": "johaanliju@gmail.com",   # demo leads come to you
     "athensdental": "johaanliju@gmail.com",  # demo leads come to you
